@@ -22,14 +22,21 @@ class Trainer(object):
     def generator_trainstep(self, y, z):
         assert(y.size(0) == z.size(0))
         toggle_grad(self.generator, True)
-        toggle_grad(self.discriminator, False)
         self.generator.train()
-        self.discriminator.train()
         self.g_optimizer.zero_grad()
 
-        x_fake = self.generator(z, y)
-        d_fake = self.discriminator(x_fake, y)
-        gloss = self.compute_loss(d_fake, 1)
+        x_fake = self.generator(z=z, y=y, uv=uv)
+        x_fake, inds = self.generator(z=z, y=y, uv=uv)       # z = shape, appearance
+
+        GT_sampled = torch.nn.functional.grid_sample(img.permute(0,3,1,2), 
+                                inds, mode='bilinear', align_corners=True)[0]
+
+        GT_sampled = GT_sampled.permute(0,2,3,1)
+        recon_loss = self.recon_loss(x_fake, GT_sampled) 
+        
+        ### make camera loss 
+        camera_loss = self.recon_loss(GT_pose, pred_pose)
+        gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight      # mira: weight 조정하기!
         gloss.backward()
 
         self.g_optimizer.step()
