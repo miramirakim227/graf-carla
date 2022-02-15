@@ -241,7 +241,7 @@ if __name__ == '__main__':
                 if config['nerf']['decrease_noise']:
                     generator.decrease_nerf_noise(it)
 
-                gloss, recon_losss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose[:, :3, :3], GT_pose=GT_pose)
+                gloss, recon_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
 
@@ -265,10 +265,9 @@ if __name__ == '__main__':
                     # Print stats
                     g_loss_last = logger.get_last('losses', 'generator')
                     recon_loss_last = logger.get_last('losses', 'recon_loss')
-                    cam_loss_last = logger.get_last('losses', 'cam_loss')
 
-                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f'
-                        % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last))
+                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
+                        % (epoch_idx, it, g_loss_last, recon_loss_last))
 
                     # g_loss_last = logger.get_last('losses', 'generator')
                     # d_loss_last = logger.get_last('losses', 'discriminator')

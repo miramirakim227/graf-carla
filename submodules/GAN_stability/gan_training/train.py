@@ -39,7 +39,7 @@ class Trainer(object):
 
         self.g_optimizer.step()
 
-        return gloss.item(), recon_loss
+        return gloss.item(), recon_loss.item()
 
     def discriminator_trainstep(self, x_real, y, z):
         toggle_grad(self.generator, False)
