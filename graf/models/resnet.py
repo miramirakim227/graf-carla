@@ -118,7 +118,6 @@ class ResNet(nn.Module):
         self.fcbn2 = nn.BatchNorm1d(512)
 
         self.dec_shape = nn.Linear(512 * block.expansion, shape_dim)
-        self.dec_rot = nn.Linear(512, 6)
         self.dec_appearance = nn.Linear(512 * block.expansion, app_dim)
 
         for m in self.modules():
@@ -186,10 +185,7 @@ class ResNet(nn.Module):
         shape = self.dec_shape(x)
         appearance = self.dec_appearance(x)
 
-        rot6d = self.dec_rot(x)
-        rotmat = rot6d_to_rotmat(rot6d)
-
-        return shape, appearance, rotmat   # (1, 3, 6)    -> 10
+        return shape, appearance  # (1, 3, 6)    -> 10
 
 
     def forward(self, x):

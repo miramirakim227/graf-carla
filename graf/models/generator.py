@@ -193,6 +193,8 @@ class Generator(object):
 
     def sample_rays(self, pred_pose=None):  # pose도 input argument로 넣어주기. dimension 맞춰주기!
         # mira: expect uv, range는 dataset의 uv에 맞게 정해져있음 
+        import pdb 
+        pdb.set_trace()
         if pred_pose is not None:
             pose = pred_pose
         else:

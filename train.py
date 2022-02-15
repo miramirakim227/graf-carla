@@ -231,7 +231,7 @@ if __name__ == '__main__':
                 x_real = x_real.to(device)
                 GT_pose = GT_pose.to(device)
 
-                shape, appearance, rotmat = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
+                shape, appearance = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
                 z = torch.cat([shape, appearance], dim=-1)
 
                 # Sample patches for real data
@@ -241,7 +241,7 @@ if __name__ == '__main__':
                 if config['nerf']['decrease_noise']:
                     generator.decrease_nerf_noise(it)
 
-                gloss, recon_losss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                gloss, recon_losss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose[:, :3, :3], GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
 

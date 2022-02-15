@@ -1,13 +1,13 @@
-expname: default
+expname: check3
 data:
   datadir: /root/dataset2/carla
   type: carla
   imsize: 256
   white_bkgd: True
-  near: 1.
-  far: 6.
-  radius: 3.4                 # set according to near and far plane
-  fov: 90.
+  near: 7.5
+  far: 12.5
+  radius: 10.                 # set according to near and far plane
+  fov: 30.0
   orthographic: False
   umin: 0.                    # 0 deg, convert to degree via 360. * u
   umax: 1.                    # 360 deg, convert to degree via 360. * u

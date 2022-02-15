@@ -199,10 +199,9 @@ while True:
         # Print stats
         g_loss_last = logger.get_last('losses', 'generator')
         recon_loss_last = logger.get_last('losses', 'recon_loss')
-        cam_loss_last = logger.get_last('losses', 'cam_loss')
 
-        print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f'
-              % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last))
+        print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
+              % (epoch_idx, it, g_loss_last, recon_loss_last))
 
         # (i) Sample if necessary
         if (it % config['training']['sample_every']) == 0:
