@@ -26,6 +26,7 @@ class Trainer(object):
         self.discriminator.train()
         self.g_optimizer.zero_grad()
 
+        # mira: graf/gan training이 아닌 여기에서 gan training이 이루어짐!
         x_fake = self.generator(z, y)
         d_fake = self.discriminator(x_fake, y)
         gloss = self.compute_loss(d_fake, 1)

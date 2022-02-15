@@ -17,6 +17,7 @@ class ImgToPatch(object):
             if selected_idcs is not None:
                 rgbs_i = img_i.flatten(1, 2).t()[selected_idcs]
             else:
+                # 여기로 넘어감
                 rgbs_i = torch.nn.functional.grid_sample(img_i.unsqueeze(0), 
                                      pixels_i.unsqueeze(0), mode='bilinear', align_corners=True)[0]
                 rgbs_i = rgbs_i.flatten(1, 2).t()
@@ -44,7 +45,7 @@ class RaySampler(object):
 
         select_inds = self.sample_rays(H, W)
 
-        if self.return_indices:
+        if self.return_indices:     # False     # mira: 언제 true되는지도 체크하기 -> eval.create_samples일때만 True
             rays_o = rays_o.view(-1, 3)[select_inds]
             rays_d = rays_d.view(-1, 3)[select_inds]
 
@@ -53,13 +54,13 @@ class RaySampler(object):
 
             hw = torch.stack([h,w]).t()
 
-        else:
-            rays_o = torch.nn.functional.grid_sample(rays_o.permute(2,0,1).unsqueeze(0), 
-                                 select_inds.unsqueeze(0), mode='bilinear', align_corners=True)[0]
+        else:     # generator에서도 얘로 샘플링함..! -> training때는 무조건 얘로!
+            rays_o = torch.nn.functional.grid_sample(rays_o.permute(2,0,1).unsqueeze(0),    # (3, W, H) -> (1, 3, W, H)
+                                 select_inds.unsqueeze(0), mode='bilinear', align_corners=True)[0]  # (W, H, 2) -> (1, W, H, 2)
             rays_d = torch.nn.functional.grid_sample(rays_d.permute(2,0,1).unsqueeze(0), 
                                  select_inds.unsqueeze(0), mode='bilinear', align_corners=True)[0]
-            rays_o = rays_o.permute(1,2,0).view(-1, 3)
-            rays_d = rays_d.permute(1,2,0).view(-1, 3)
+            rays_o = rays_o.permute(1,2,0).view(-1, 3)  # (W, H, 3)
+            rays_d = rays_d.permute(1,2,0).view(-1, 3)  # (W, H, 3)
 
             hw = select_inds
             select_inds = None
@@ -91,7 +92,7 @@ class FlexGridRaySampler(RaySampler):
         self.max_scale = max_scale
 
         # nn.functional.grid_sample grid value range in [-1,1]
-        self.w, self.h = torch.meshgrid([torch.linspace(-1,1,self.N_samples_sqrt),
+        self.w, self.h = torch.meshgrid([torch.linspace(-1,1,self.N_samples_sqrt),  # 32
                                          torch.linspace(-1,1,self.N_samples_sqrt)])
         self.h = self.h.unsqueeze(2)
         self.w = self.w.unsqueeze(2)
@@ -126,5 +127,4 @@ class FlexGridRaySampler(RaySampler):
             w += w_offset
 
         self.scale = scale
-
         return torch.cat([h, w], dim=2)

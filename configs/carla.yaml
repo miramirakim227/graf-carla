@@ -1,4 +1,5 @@
-expname: recon-camGT
+expname: check
+data:
   imsize: 256
   datadir: /root/dataset2/carla
   type: carla
