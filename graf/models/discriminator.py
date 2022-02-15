@@ -6,7 +6,7 @@ class Discriminator(nn.Module):
     def __init__(self, nc=3, ndf=64, imsize=64, hflip=False):
         super(Discriminator, self).__init__()
         self.nc = nc
-        assert(imsize==32 or imsize==64 or imsize==128)
+        assert(imsize==32 or imsize==64 or imsize==128 or imsize==256)
         self.imsize = imsize
         self.hflip = hflip
 
@@ -15,6 +15,26 @@ class Discriminator(nn.Module):
 
         blocks = []
         if self.imsize==128:
+            blocks += [
+                # input is (nc) x 128 x 128
+                SN(nn.Conv2d(nc, ndf//4, 4, 2, 1, bias=False)),
+                nn.LeakyReLU(0.2, inplace=True),
+                # input is (ndf//2) x 64 x 64
+                SN(nn.Conv2d(ndf//4, ndf//2, 4, 2, 1, bias=False)),
+                #nn.BatchNorm2d(ndf * 2),
+                IN(ndf//2),
+                nn.LeakyReLU(0.2, inplace=True),
+                ## 
+                SN(nn.Conv2d(ndf//2, ndf, 4, 2, 1, bias=False)),
+                IN(ndf),
+                nn.LeakyReLU(0.2, inplace=True),
+                # state size. (ndf) x 32 x 32
+                SN(nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False)),
+                #nn.BatchNorm2d(ndf * 2),
+                IN(ndf * 2),
+                nn.LeakyReLU(0.2, inplace=True),
+            ]
+        elif self.imsize==128:
             blocks += [
                 # input is (nc) x 128 x 128
                 SN(nn.Conv2d(nc, ndf//2, 4, 2, 1, bias=False)),

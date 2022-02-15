@@ -1,8 +1,8 @@
 expname: default
 data:
-  datadir: data/carla
+  datadir: /root/dataset2/carla
   type: carla
-  imsize: 64
+  imsize: 256
   white_bkgd: True
   near: 1.
   far: 6.

@@ -1,7 +1,7 @@
-expname: carla_128
+expname: check
 data:
-  imsize: 128
-  datadir: data/carla
+  imsize: 256
+  datadir: /root/dataset2/carla
   type: carla
   radius: 10.
   near: 7.5

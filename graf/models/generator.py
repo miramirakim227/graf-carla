@@ -27,6 +27,7 @@ class Generator(object):
         self.initial_raw_noise_std = self.render_kwargs_train['raw_noise_std']
         self._parameters = parameters
         self._named_parameters = named_parameters
+        # module_dict에 network_fn, network_fine 넣어주는 중 -> discriminator는..?
         self.module_dict = {'generator': self.render_kwargs_train['network_fn']}
         for name, module in [('generator_fine', self.render_kwargs_train['network_fine'])]:
             if module is not None:

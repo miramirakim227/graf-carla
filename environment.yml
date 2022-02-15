@@ -1,4 +1,4 @@
-name: graf
+name: graf2
 channels:
   - conda-forge
   - anaconda
