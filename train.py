@@ -241,10 +241,9 @@ if __name__ == '__main__':
                 if config['nerf']['decrease_noise']:
                     generator.decrease_nerf_noise(it)
 
-                gloss, recon_loss, cam_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                gloss, recon_losss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
-                logger.add('losses', 'cam_loss', cam_loss, it=it)
 
                 if config['training']['take_model_average']:
                     update_average(generator_test, generator,

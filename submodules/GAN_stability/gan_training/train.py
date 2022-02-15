@@ -33,17 +33,13 @@ class Trainer(object):
                                 inds, mode='bilinear', align_corners=True)       # 이거인가 혹은 반대인가..
         GT_sampled = GT_sampled.permute(0, 2, 3, 1).reshape(-1, 3)
         recon_loss = self.recon_loss(x_fake, GT_sampled) 
-        
-        rot_loss = torch.norm(torch.bmm(torch.inverse(GT_pose[:, :3, :3]), pred_pose[:, :3, :3]) - torch.eye(3).reshape(-1, 3, 3).repeat(len(GT_pose), 1, 1).to(GT_pose.device))
-        trans_loss = self.recon_loss(GT_pose[:, :3, -1], pred_pose[:, :3, -1]*self.radius)
-        camera_loss = rot_loss + trans_loss
-
-        gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight      # mira: weight 조정하기!
+    
+        gloss = recon_loss * self.recon_weight       # mira: weight 조정하기!
         gloss.backward()
 
         self.g_optimizer.step()
 
-        return gloss.item(), recon_loss, camera_loss
+        return gloss.item(), recon_loss
 
     def discriminator_trainstep(self, x_real, y, z):
         toggle_grad(self.generator, False)
