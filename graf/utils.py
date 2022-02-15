@@ -6,13 +6,16 @@ import os
 
 def get_nsamples(data_loader, N):
   x = []
+  x_pose = []
   n = 0
   while n < N:
-    x_next = next(iter(data_loader))
+    x_next, pose_next = next(iter(data_loader))
     x.append(x_next)
+    x_pose.append(pose_next)
     n += x_next.size(0)
   x = torch.cat(x, dim=0)[:N]
-  return x
+  x_pose = torch.cat(x_pose, dim=0)[:N]
+  return x, x_pose
 
 
 def count_trainable_parameters(model):
@@ -156,15 +159,61 @@ def look_at(eye, at=np.array([0, 0, 0]), up=np.array([0, 0, 1]), eps=1e-5):
     up = up.repeat(eye.shape[0] // up.shape[0], axis=0)
     eps = np.array([eps]).reshape(1, 1).repeat(up.shape[0], axis=0)
 
-    z_axis = eye - at
-    z_axis /= np.max(np.stack([np.linalg.norm(z_axis, axis=1, keepdims=True), eps]))
+    z_axis = eye - at   # (1, 3)
+    z_axis /= np.max(np.stack([np.linalg.norm(z_axis, axis=1, keepdims=True), eps]))  # (2, 1, 1)
 
-    x_axis = np.cross(up, z_axis)
+    x_axis = np.cross(up, z_axis) # (1, 3)
     x_axis /= np.max(np.stack([np.linalg.norm(x_axis, axis=1, keepdims=True), eps]))
 
     y_axis = np.cross(z_axis, x_axis)
     y_axis /= np.max(np.stack([np.linalg.norm(y_axis, axis=1, keepdims=True), eps]))
 
     r_mat = np.concatenate((x_axis.reshape(-1, 3, 1), y_axis.reshape(-1, 3, 1), z_axis.reshape(-1, 3, 1)), axis=2)
+
+    return r_mat
+
+
+def look_at_torch_single(eye, at=np.array([0, 0, 0]), up=np.array([0, 0, 1]), eps=1e-5):
+    at = torch.from_numpy(at.astype(float).reshape(1, 3)).to(eye.device)
+    up = torch.from_numpy(up.astype(float).reshape(1, 3)).to(eye.device)
+
+    eye = eye.reshape(-1, 3)
+    up = up.repeat(eye.shape[0] // up.shape[0], 1)
+    eps = torch.from_numpy(np.array([eps]).reshape(1, 1).repeat(up.shape[0], 1)).to(eye.device)
+
+    z_axis = eye - at
+
+    new_z_axis = z_axis / torch.max(torch.stack([torch.norm(z_axis, dim=1).unsqueeze(1), eps]))
+
+    x_axis = torch.cross(up, z_axis)
+    new_x_axis = x_axis / torch.max(torch.stack([torch.norm(x_axis, dim=1).unsqueeze(1), eps]))
+
+    y_axis = torch.cross(z_axis, x_axis)
+    new_y_axis = y_axis / torch.max(torch.stack([torch.norm(y_axis, dim=1).unsqueeze(1), eps]))
+
+    r_mat = torch.cat((new_x_axis.reshape(-1, 3, 1), new_y_axis.reshape(-1, 3, 1), new_z_axis.reshape(-1, 3, 1)), dim=2)
+
+    return r_mat
+
+def look_at_torch(eye, at=np.array([0, 0, 0]), up=np.array([0, 0, 1]), eps=1e-5):
+    bs = len(eye)       # eye: (B, 3)
+    at = torch.from_numpy(at.astype(float).reshape(1, 3)).to(eye.device).repeat(bs, 1)
+    up = torch.from_numpy(up.astype(float).reshape(1, 3)).to(eye.device)
+
+    eye = eye.reshape(bs, -1)
+    up = up.repeat(eye.shape[0] // up.shape[0], 1)
+    eps = torch.from_numpy(np.array([eps]).reshape(1, 1).repeat(up.shape[0])).to(eye.device).unsqueeze(1)
+
+    z_axis = eye - at
+
+    new_z_axis = z_axis / torch.max(torch.stack([torch.norm(z_axis, dim=1).unsqueeze(1), eps]))
+
+    x_axis = torch.cross(up, z_axis)
+    new_x_axis = x_axis / torch.max(torch.stack([torch.norm(x_axis, dim=1).unsqueeze(1), eps]))
+
+    y_axis = torch.cross(z_axis, x_axis)
+    new_y_axis = y_axis / torch.max(torch.stack([torch.norm(y_axis, dim=1).unsqueeze(1), eps]))
+
+    r_mat = torch.cat((new_x_axis.reshape(-1, 3, 1), new_y_axis.reshape(-1, 3, 1), new_z_axis.reshape(-1, 3, 1)), dim=2)
 
     return r_mat

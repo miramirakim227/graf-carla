@@ -1,9 +1,9 @@
 import glob
 import numpy as np
 from PIL import Image
-
+import os 
 from torchvision.datasets.vision import VisionDataset
-
+import torch
 
 class ImageDataset(VisionDataset):
     """
@@ -39,7 +39,10 @@ class ImageDataset(VisionDataset):
         img = Image.open(filename).convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
-        return img
+        base_filename = os.path.basename(filename).split('.')[0]
+        pose_path = f'{self.root[0]}/carla_poses/{base_filename}_extrinsics.npy'
+        pose = torch.from_numpy(np.load(pose_path))
+        return img, pose
 
 
 class Carla(ImageDataset):

@@ -96,10 +96,11 @@ def build_optimizers(generator, discriminator, config):
         d_params = get_parameter_groups(discriminator.parameters(),
                                         d_gradient_scales,
                                         base_lr=lr_d)
-    else:
+    else:   # Equalize LR 사용 안함 
         g_params = generator.parameters()
         d_params = discriminator.parameters()
 
+    
     # Optimizers
     if optimizer == 'rmsprop':
         g_optimizer = optim.RMSprop(g_params, lr=lr_g, alpha=0.99, eps=1e-8)
@@ -110,6 +111,8 @@ def build_optimizers(generator, discriminator, config):
     elif optimizer == 'sgd':
         g_optimizer = optim.SGD(g_params, lr=lr_g, momentum=0.)
         d_optimizer = optim.SGD(d_params, lr=lr_d, momentum=0.)
+
+    g_optimizer.add_param_group({'params': generator.encoder.parameters()})
 
     return g_optimizer, d_optimizer
 

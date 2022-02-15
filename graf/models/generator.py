@@ -1,11 +1,11 @@
 import numpy as np
 import torch
-from ..utils import sample_on_sphere, look_at, to_sphere
+from ..utils import sample_on_sphere, look_at, look_at_torch, look_at_torch_single, to_sphere
 from ..transforms import FullRaySampler
 from submodules.nerf_pytorch.run_nerf_mod import render, run_network            # import conditional render
 from functools import partial
 from .resnet import resnet18
-
+import math 
 
 class Generator(object):
     def __init__(self, H, W, focal, radius, ray_sampler, render_kwargs_train, render_kwargs_test, parameters, named_parameters,
@@ -45,14 +45,22 @@ class Generator(object):
         self.use_test_kwargs = False
 
         self.render = partial(render, H=self.H, W=self.W, focal=self.focal, chunk=self.chunk)
-        self.encoder = resnet18(pretrained=True, shape_dim=self.z_dim, app_dim=self.z_dim)
+        latent_dim = 128        
+        self.encoder = resnet18(pretrained=True, shape_dim=latent_dim, app_dim=latent_dim)
 
-    def __call__(self, z, y=None, uv = uv, rays=None):
+    def __call__(self, z, y=None, pred_pose=None, rays=None):
         bs = z.shape[0]
 
-        # sample_ray를 uv 기준으로 함..!
+        # sample_ray를 pred_pose 기준으로 함..!
         if rays is None:
-            rays, selected_idcs, _ = torch.cat([self.sample_rays(uv) for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
+            ray_list = []
+            hw_list = []
+            for i in range(bs):
+                ray, hw = self.sample_rays(pred_pose[i])
+                ray_list.append(ray)
+                hw_list.append(hw)
+            rays = torch.cat(ray_list, dim=1)
+            inds = torch.stack(hw_list, dim=0)
 
         render_kwargs = self.render_kwargs_test if self.use_test_kwargs else self.render_kwargs_train
         render_kwargs = dict(render_kwargs)        # copy
@@ -95,7 +103,7 @@ class Generator(object):
                    rays_to_output(acc), extras
 
         rgb = rays_to_output(rgb)
-        return rgb
+        return rgb, inds
 
     def decrease_nerf_noise(self, it):
         end_it = 5000
@@ -103,9 +111,13 @@ class Generator(object):
             noise_std = self.initial_raw_noise_std - self.initial_raw_noise_std/end_it * it
             self.render_kwargs_train['raw_noise_std'] = noise_std
 
-    def sample_pose(self):
+    def sample_pose(self, uv=None):
         # sample location on unit sphere
-        loc = sample_on_sphere(self.range_u, self.range_v)
+        if uv is not None:
+            u, v = uv[:, 0], uv[:, 1]
+            loc = to_sphere(u, v)
+        else:
+            loc = sample_on_sphere(self.range_u, self.range_v)
         
         # sample radius if necessary
         radius = self.radius
@@ -122,13 +134,73 @@ class Generator(object):
         # mira: 그러면 우리도.. 아예 loc을 예측하자 
         return RT
 
-    def sample_rays(self):  # pose도 input argument로 넣어주기. dimension 맞춰주기!
+    def to_sphere_torch_single(self, u, v):
+        theta = 2 * math.pi * u
+        phi = torch.arccos(torch.ones_like(v) - 2 * v)
+        cx = torch.sin(phi) * torch.cos(theta)
+        cy = torch.sin(phi) * torch.sin(theta)
+        cz = torch.cos(phi)
+        s = torch.stack([cx, cy, cz])
+        return s
+
+    def to_sphere_torch(self, u, v):
+        theta = 2 * math.pi * u
+        phi = torch.arccos(torch.ones_like(v) - 2 * v)
+        cx = torch.sin(phi) * torch.cos(theta)
+        cy = torch.sin(phi) * torch.sin(theta)
+        cz = torch.cos(phi)
+        s = torch.stack([cx, cy, cz], dim=1)
+        return s
+
+    def uv2pose(self, uv):
+        # sample location on unit sphere
+        u, v = uv[:, 0], uv[:, 1]
+        loc = self.to_sphere_torch(u, v)
+        
+        # sample radius if necessary
+        radius = self.radius
+        if isinstance(radius, tuple):
+            radius = np.random.uniform(*radius)
+
+        loc = loc * radius
+        R = look_at_torch(loc)
+
+        RT = torch.cat([R, loc.reshape(len(R), 3, 1)], dim=-1)
+        # mira: check camera pose translation, rotation 확인 
+        # mira: check 여기선 radius를 조정하는데.. 우리도 그렇게 해도 되는지 아니면 데이터마다 지금처럼 radius와 그에 따른 near, far를 각각 설정해줘야 하는지
+        # mira: 그러면 우리도.. 아예 loc을 예측하자 
+        return RT
+
+    def uv2pose_single(self, uv):
+        # sample location on unit sphere
+        u, v = uv[0], uv[1]
+        loc = self.to_sphere_torch_single(u, v)
+        
+        # sample radius if necessary
+        radius = self.radius
+        if isinstance(radius, tuple):
+            radius = np.random.uniform(*radius)
+
+        loc = loc * radius
+        R = look_at_torch_single(loc)[0]
+
+        RT = torch.cat([R, loc.reshape(3, 1)], dim=-1)
+        # mira: check camera pose translation, rotation 확인 
+        # mira: check 여기선 radius를 조정하는데.. 우리도 그렇게 해도 되는지 아니면 데이터마다 지금처럼 radius와 그에 따른 near, far를 각각 설정해줘야 하는지
+        # mira: 그러면 우리도.. 아예 loc을 예측하자 
+        return RT
+
+
+    def sample_rays(self, pred_pose=None):  # pose도 input argument로 넣어주기. dimension 맞춰주기!
         # mira: expect uv, range는 dataset의 uv에 맞게 정해져있음 
-        pose = self.sample_pose()   # mira: 여기서 pose distribution 찾아보기, 적어도 pose어떻게 생겼는지 확인해보기
+        if pred_pose is not None:
+            pose = pred_pose
+        else:
+            pose = self.sample_pose()   # mira: 여기서 pose distribution 찾아보기, 적어도 pose어떻게 생겼는지 확인해보기
         # mira: 그리고 pose dimension도 확인해보기
         sampler = self.val_ray_sampler if self.use_test_kwargs else self.ray_sampler
-        batch_rays, _, _ = sampler(self.H, self.W, self.focal, pose)
-        return batch_rays
+        batch_rays, _, hw = sampler(self.H, self.W, self.focal, pose)
+        return batch_rays, hw
 
     def to(self, device):
         self.render_kwargs_train['network_fn'].to(device)

@@ -1,4 +1,4 @@
-expname: check
+expname: recon-predcam
 data:
   imsize: 256
   datadir: /root/dataset2/carla

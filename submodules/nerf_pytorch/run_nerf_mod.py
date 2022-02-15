@@ -35,9 +35,7 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, features=None, net
                 feat_dim_appearance=0):
     inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
     embedded = embed_fn(inputs_flat)
-    # 여기서 feature dimension을 찾아야 함!
-    import pdb 
-    pdb.set_trace()    
+    # 여기서 feature dimension을 찾아야 함!   
     if features is not None:
         # expand features to shape of flattened inputs
         features = features.unsqueeze(1).expand(-1, inputs.shape[1], -1).flatten(0, 1)
@@ -53,8 +51,6 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, features=None, net
             features_appearance = None
 
         # mira: check feature shape, appearance dimension 확인 
-        import pdb 
-        pdb.set_trace()
         embedded = torch.cat([embedded, features_shape], -1)
 
     if viewdirs is not None:
@@ -76,8 +72,7 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, features=None, net
 def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
 
     all_ret = {}
-    import pdb 
-    pdb.set_trace()
+
     # mira: features가 여기에서 들어감 
     features = kwargs.get('features')
     for i in range(0, rays_flat.shape[0], chunk):
@@ -128,8 +123,6 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
     if use_viewdirs:
         rays = torch.cat([rays, viewdirs], -1)
 
-    import pdb 
-    pdb.set_trace()
     # Expand features to shape of rays
     if kwargs.get('features') is not None:
         bs = kwargs['features'].shape[0]
@@ -334,8 +327,6 @@ def render_rays(ray_batch,
 #     raw = run_network(pts)
     # mira: 여기에 우선은 None의 features가 들어감. shape, appearance!
     # None이면 따로 sampling을 해주지만, 우리는 여기에 regressed shape, appearance를 넣을 예정!
-    import pdb 
-    pdb.set_trace()
     raw = network_query_fn(pts, viewdirs, network_fn, features)
     rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 

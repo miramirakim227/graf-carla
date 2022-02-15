@@ -14,8 +14,6 @@ class ImgToPatch(object):
         for img_i in img:
             pose = torch.eye(4)         # use dummy pose to infer pixel values
             _, selected_idcs, pixels_i = self.ray_sampler(H=self.hwf[0], W=self.hwf[1], focal=self.hwf[2], pose=pose)
-            import pdb 
-            pdb.set_trace() # 여기서 None 지나는지 확인하기 
             if selected_idcs is not None:
                 rgbs_i = img_i.flatten(1, 2).t()[selected_idcs]
             else:
@@ -56,7 +54,8 @@ class RaySampler(object):
             hw = torch.stack([h,w]).t()
 
         else:
-            rays_o = torch.nn.functional.grid_sample(rays_o.permute(2,0,1).unsqueeze(0), 
+            rays_o, rays_d = rays_o.to(torch.float32), rays_d.to(torch.float32)
+            rays_o = torch.nn.functional.grid_sample(rays_o.permute(2,0,1).unsqueeze(0),        # torch.Size([1, 3, 256, 256]), torch.Size([1, 32, 32, 2])
                                  select_inds.unsqueeze(0), mode='bilinear', align_corners=True)[0]
             rays_d = torch.nn.functional.grid_sample(rays_d.permute(2,0,1).unsqueeze(0), 
                                  select_inds.unsqueeze(0), mode='bilinear', align_corners=True)[0]

@@ -99,13 +99,12 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(512 * block.expansion, 512 * block.expansion)
-        self.fc2 = nn.Linear(512 * block.expansion, 512 * block.expansion)
-        # self.dec_uv = nn.Linear(512 * block.expansion, 2)      # cmr부분 가져오기 
+        self.dec_uv = nn.Linear(512, 2)      # cmr부분 가져오기 
+        # softplus로 넣어주고 normalize하기 
         # self.sigmoid = nn.Sigmoid()
-        self.rot = nn.Linear(512 * block.expansion, 6)
-        self.scale = nn.Linear(512 * block.expansion, 1)
-        self.trans = nn.Linear(512 * block.expansion, 3)
+        # self.rot = nn.Linear(512 * block.expansion, 6)
+        # self.scale = nn.Linear(512 * block.expansion, 1)
+        # self.trans = nn.Linear(512 * block.expansion, 3)
 
         self._norm_layer = nn.BatchNorm2d
         self.inplanes = 64
@@ -113,8 +112,13 @@ class ResNet(nn.Module):
         self.groups = 1 
         self.base_width = 64
 
-        self.dec_shape = nn.Linear(512 * block.expansion, shape_dim)
+        self.lastfc1 = nn.Linear(512, 512)
+        self.fcbn1 = nn.BatchNorm1d(512)
+        self.lastfc2 = nn.Linear(512, 512)
+        self.fcbn2 = nn.BatchNorm1d(512)
 
+        self.dec_shape = nn.Linear(512 * block.expansion, shape_dim)
+        self.dec_rot = nn.Linear(512, 6)
         self.dec_appearance = nn.Linear(512 * block.expansion, app_dim)
 
         for m in self.modules():
@@ -173,16 +177,19 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = self.fc2(x)
 
-        rot6d = self.rot(x)
-        rotmat = rot6d_to_rotmat(rot6d)
+        image_features = x / x.norm(dim=-1, keepdim=True)
+
+        x = self.relu(self.fcbn1(self.lastfc1(image_features)))
+        x = self.relu(self.fcbn2(self.lastfc2(x)))
 
         shape = self.dec_shape(x)
         appearance = self.dec_appearance(x)
 
-        return rotmat, shape, appearance   # (1, 3, 6)    -> 10
+        rot6d = self.dec_rot(x)
+        rotmat = rot6d_to_rotmat(rot6d)
+
+        return shape, appearance, rotmat   # (1, 3, 6)    -> 10
 
 
     def forward(self, x):

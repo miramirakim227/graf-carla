@@ -18,30 +18,32 @@ class Trainer(object):
         self.gan_type = gan_type
         self.reg_type = reg_type
         self.reg_param = reg_param
+        self.recon_weight = 100
+        self.cam_weight = 1
+        self.radius = 10
 
-    def generator_trainstep(self, y, z):
+    def generator_trainstep(self, y, z, img=None, pred_pose=None, GT_pose=None):
         assert(y.size(0) == z.size(0))
         toggle_grad(self.generator, True)
         self.generator.train()
         self.g_optimizer.zero_grad()
 
-        x_fake = self.generator(z=z, y=y, uv=uv)
-        x_fake, inds = self.generator(z=z, y=y, uv=uv)       # z = shape, appearance
-
-        GT_sampled = torch.nn.functional.grid_sample(img.permute(0,3,1,2), 
-                                inds, mode='bilinear', align_corners=True)[0]
-
-        GT_sampled = GT_sampled.permute(0,2,3,1)
+        x_fake, inds = self.generator(z=z, y=y, pred_pose=pred_pose)       # z = shape, appearance
+        GT_sampled = torch.nn.functional.grid_sample(img, 
+                                inds, mode='bilinear', align_corners=True)       # 이거인가 혹은 반대인가..
+        GT_sampled = GT_sampled.permute(0, 2, 3, 1).reshape(-1, 3)
         recon_loss = self.recon_loss(x_fake, GT_sampled) 
         
-        ### make camera loss 
-        camera_loss = self.recon_loss(GT_pose, pred_pose)
+        rot_loss = torch.norm(torch.bmm(torch.inverse(GT_pose[:, :3, :3]), pred_pose[:, :3, :3]) - torch.eye(3).reshape(-1, 3, 3).repeat(len(GT_pose), 1, 1).to(GT_pose.device))
+        trans_loss = self.recon_loss(GT_pose[:, :3, -1], pred_pose[:, :3, -1]*self.radius)
+        camera_loss = rot_loss + trans_loss
+
         gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight      # mira: weight 조정하기!
         gloss.backward()
 
         self.g_optimizer.step()
 
-        return gloss.item()
+        return gloss.item(), recon_loss, camera_loss
 
     def discriminator_trainstep(self, x_real, y, z):
         toggle_grad(self.generator, False)

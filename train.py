@@ -136,7 +136,7 @@ if __name__ == '__main__':
     # Save for tests
     n_test_samples_with_same_shape_code = config['training']['n_test_samples_with_same_shape_code']
     ntest = batch_size
-    x_real = get_nsamples(train_loader, ntest)
+    x_real, _ = get_nsamples(train_loader, ntest)
     ytest = torch.zeros(ntest)
     ztest = zdist.sample((ntest,))
     ptest = torch.stack([generator.sample_pose() for i in range(ntest)])
@@ -218,98 +218,112 @@ if __name__ == '__main__':
     # Training loop
     print('Start training...')
     while True:
-        epoch_idx += 1
-        print('Start epoch %d...' % epoch_idx)
+        with torch.autograd.set_detect_anomaly(True):
+            epoch_idx += 1
+            print('Start epoch %d...' % epoch_idx)
 
-        for x_real in train_loader:
-            t_it = time.time()
-            it += 1
-            generator.ray_sampler.iterations = it   # for scale annealing
+            for x_real, GT_pose in train_loader:
+                t_it = time.time()
+                it += 1
+                generator.ray_sampler.iterations = it   # for scale annealing
 
-            # mira: 1. encoder에서 rotmat, latent vectors들 뽑아냄 
-            shape, appearance, uv = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
-            z = torch.cat([shape, appearance], dim=-1)
+                # mira: 1. encoder에서 rotmat, latent vectors들 뽑아냄 
+                x_real = x_real.to(device)
+                GT_pose = GT_pose.to(device)
 
-            # Sample patches for real data
-            rgbs = img_to_patch(x_real.to(device))          # N_samples x C
+                shape, appearance, rotmat = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
+                z = torch.cat([shape, appearance], dim=-1)
 
-            # Generators updates
-            if config['nerf']['decrease_noise']:
-              generator.decrease_nerf_noise(it)
+                # Sample patches for real data
+                rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
-            gloss = trainer.generator_trainstep(y=y, z=z, x_real_sampled=rgbs, uv=uv)
-            logger.add('losses', 'generator', gloss, it=it)
+                # Generators updates
+                if config['nerf']['decrease_noise']:
+                    generator.decrease_nerf_noise(it)
 
-            if config['training']['take_model_average']:
-                update_average(generator_test, generator,
-                               beta=config['training']['model_average_beta'])
+                gloss, recon_loss, cam_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                logger.add('losses', 'generator', gloss, it=it)
+                logger.add('losses', 'recon_loss', recon_loss, it=it)
+                logger.add('losses', 'cam_loss', cam_loss, it=it)
 
-            # Update learning rate
-            g_scheduler.step()
-            d_scheduler.step()
+                if config['training']['take_model_average']:
+                    update_average(generator_test, generator,
+                                beta=config['training']['model_average_beta'])
 
-            d_lr = d_optimizer.param_groups[0]['lr']
-            g_lr = g_optimizer.param_groups[0]['lr']
+                # Update learning rate
+                g_scheduler.step()
+                d_scheduler.step()
 
-            logger.add('learning_rates', 'discriminator', d_lr, it=it)
-            logger.add('learning_rates', 'generator', g_lr, it=it)
+                d_lr = d_optimizer.param_groups[0]['lr']
+                g_lr = g_optimizer.param_groups[0]['lr']
 
-            dt = time.time() - t_it
-            # Print stats
-            if ((it + 1) % config['training']['print_every']) == 0:
-                g_loss_last = logger.get_last('losses', 'generator')
-                d_loss_last = logger.get_last('losses', 'discriminator')
-                d_reg_last = logger.get_last('losses', 'regularizer')
-                print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                      % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, d_loss_last, d_reg_last))
+                logger.add('learning_rates', 'discriminator', d_lr, it=it)
+                logger.add('learning_rates', 'generator', g_lr, it=it)
 
-            # (ii) Sample if necessary
-            if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
-                rgb, depth, acc = evaluator.create_samples(ztest.to(device), poses=ptest)
-                logger.add_imgs(rgb, 'rgb', it)
-                logger.add_imgs(depth, 'depth', it)
-                logger.add_imgs(acc, 'acc', it)
+                dt = time.time() - t_it
+                # Print stats
+                if ((it + 1) % config['training']['print_every']) == 0:
+                    # Print stats
+                    g_loss_last = logger.get_last('losses', 'generator')
+                    recon_loss_last = logger.get_last('losses', 'recon_loss')
+                    cam_loss_last = logger.get_last('losses', 'cam_loss')
 
-            # (v) Compute fid if necessary
-            if fid_every > 0 and ((it + 1) % fid_every) == 0:
-                fid, kid = evaluator.compute_fid_kid()
-                logger.add('validation', 'fid', fid, it=it)
-                logger.add('validation', 'kid', kid, it=it)
-                torch.cuda.empty_cache()
-                # save best model
-                if save_best=='fid' and fid < fid_best:
-                    fid_best = fid
-                    print('Saving best model...')
-                    checkpoint_io.save('model_best.pt', it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
-                    logger.save_stats('stats_best.p')
+                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f'
+                        % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last))
+
+                    # g_loss_last = logger.get_last('losses', 'generator')
+                    # d_loss_last = logger.get_last('losses', 'discriminator')
+                    # d_reg_last = logger.get_last('losses', 'regularizer')
+                    # print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, d_loss = %.4f, reg=%.4f'
+                    #     % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, d_loss_last, d_reg_last))
+
+                # (ii) Sample if necessary
+                if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
+                    rgb, depth, acc = evaluator.create_samples(ztest.to(device), poses=ptest)
+                    logger.add_imgs(rgb, 'rgb', it)
+                    logger.add_imgs(depth, 'depth', it)
+                    logger.add_imgs(acc, 'acc', it)
+
+                # (v) Compute fid if necessary
+                if fid_every > 0 and ((it + 1) % fid_every) == 0:
+                    fid, kid = evaluator.compute_fid_kid()
+                    logger.add('validation', 'fid', fid, it=it)
+                    logger.add('validation', 'kid', kid, it=it)
                     torch.cuda.empty_cache()
-                elif save_best=='kid' and kid < kid_best:
-                    kid_best = kid
-                    print('Saving best model...')
-                    checkpoint_io.save('model_best.pt', it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
-                    logger.save_stats('stats_best.p')
-                    torch.cuda.empty_cache()
+                    # save best model
+                    if save_best=='fid' and fid < fid_best:
+                        fid_best = fid
+                        print('Saving best model...')
+                        checkpoint_io.save('model_best.pt', it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
+                        logger.save_stats('stats_best.p')
+                        torch.cuda.empty_cache()
+                    elif save_best=='kid' and kid < kid_best:
+                        kid_best = kid
+                        print('Saving best model...')
+                        checkpoint_io.save('model_best.pt', it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
+                        logger.save_stats('stats_best.p')
+                        torch.cuda.empty_cache()
 
-            # (vi) Create video if necessary
-            if ((it+1) % config['training']['video_every']) == 0:
-                N_samples = 4
-                zvid = zdist.sample((N_samples,))
+                # (vi) Create video if necessary
+                if ((it+1) % config['training']['video_every']) == 0:
+                    N_samples = 4
+                    zvid = zdist.sample((N_samples,))
 
-                basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
-                evaluator.make_video(basename, zvid, render_poses, as_gif=False)
+                    basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
+                    evaluator.make_video(basename, zvid, render_poses, as_gif=False)
 
-            # (i) Backup if necessary
-            if ((it + 1) % backup_every) == 0:
-                print('Saving backup...')
-                checkpoint_io.save('model_%08d.pt' % it, it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
-                logger.save_stats('stats_%08d.p' % it)
+                # (i) Backup if necessary
+                if ((it + 1) % backup_every) == 0:
+                    print('Saving backup...')
+                    checkpoint_io.save('model_%08d.pt' % it, it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
+                    logger.save_stats('stats_%08d.p' % it)
 
-            # (vi) Save checkpoint if necessary
-            if time.time() - t0 > save_every:
-                print('Saving checkpoint...')
-                checkpoint_io.save(model_file, it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
-                logger.save_stats('stats.p')
-                t0 = time.time()
+                # (vi) Save checkpoint if necessary
+                if time.time() - t0 > save_every:
+                    print('Saving checkpoint...')
+                    checkpoint_io.save(model_file, it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
+                    logger.save_stats('stats.p')
+                    t0 = time.time()
 
-                if (restart_every > 0 and t0 - tstart > restart_every):
-                    exit(3)
+                    if (restart_every > 0 and t0 - tstart > restart_every):
+                        exit(3)
