@@ -13,6 +13,7 @@ class Trainer(object):
         self.discriminator = discriminator
         self.g_optimizer = g_optimizer
         self.d_optimizer = d_optimizer
+        self.recon_loss = torch.nn.MSELoss()
 
         self.gan_type = gan_type
         self.reg_type = reg_type

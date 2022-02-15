@@ -14,6 +14,8 @@ class ImgToPatch(object):
         for img_i in img:
             pose = torch.eye(4)         # use dummy pose to infer pixel values
             _, selected_idcs, pixels_i = self.ray_sampler(H=self.hwf[0], W=self.hwf[1], focal=self.hwf[2], pose=pose)
+            import pdb 
+            pdb.set_trace() # 여기서 None 지나는지 확인하기 
             if selected_idcs is not None:
                 rgbs_i = img_i.flatten(1, 2).t()[selected_idcs]
             else:

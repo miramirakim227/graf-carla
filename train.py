@@ -226,21 +226,18 @@ if __name__ == '__main__':
             it += 1
             generator.ray_sampler.iterations = it   # for scale annealing
 
+            # mira: 1. encoder에서 rotmat, latent vectors들 뽑아냄 
+            shape, appearance, uv = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
+            z = torch.cat([shape, appearance], dim=-1)
+
             # Sample patches for real data
             rgbs = img_to_patch(x_real.to(device))          # N_samples x C
-
-            # Discriminator updates
-            z = zdist.sample((batch_size,))
-            dloss, reg = trainer.discriminator_trainstep(rgbs, y=y, z=z)
-            logger.add('losses', 'discriminator', dloss, it=it)
-            logger.add('losses', 'regularizer', reg, it=it)
 
             # Generators updates
             if config['nerf']['decrease_noise']:
               generator.decrease_nerf_noise(it)
 
-            z = zdist.sample((batch_size,))
-            gloss = trainer.generator_trainstep(y=y, z=z)
+            gloss = trainer.generator_trainstep(y=y, z=z, x_real_sampled=rgbs, uv=uv)
             logger.add('losses', 'generator', gloss, it=it)
 
             if config['training']['take_model_average']:

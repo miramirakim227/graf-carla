@@ -45,20 +45,14 @@ class Generator(object):
         self.use_test_kwargs = False
 
         self.render = partial(render, H=self.H, W=self.W, focal=self.focal, chunk=self.chunk)
-        '''풀기!
         self.encoder = resnet18(pretrained=True, shape_dim=self.z_dim, app_dim=self.z_dim)
-        '''
 
-    def __call__(self, z, y=None, rays=None):
+    def __call__(self, z, y=None, uv = uv, rays=None):
         bs = z.shape[0]
-        '''풀기!
-        rotmat, shape, appearance = self.encoder(img)   # mira: image의 output을 여기서 예측
 
+        # sample_ray를 uv 기준으로 함..!
         if rays is None:
-            rays = torch.cat([self.sample_rays(rotmat) for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
-        '''
-        if rays is None:
-            rays = torch.cat([self.sample_rays() for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
+            rays, selected_idcs, _ = torch.cat([self.sample_rays(uv) for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
 
         render_kwargs = self.render_kwargs_test if self.use_test_kwargs else self.render_kwargs_train
         render_kwargs = dict(render_kwargs)        # copy
@@ -89,8 +83,6 @@ class Generator(object):
         # mira: 아... features sampling이 z로 이미 들어가네.... 오... 그러면 render kwargs에 dimension 맞춰서 넣어주면 될듯..
         render_kwargs['features'] = z   # B, 256 -> minus plus 골고루 들어감스트 
         
-        import pdb 
-        pdb.set_trace()
         # mira: 여기에 render가 있음! 여기에 camera 넣으면 됨!
         rgb, disp, acc, extras = render(self.H, self.W, self.focal, chunk=self.chunk, rays=rays, 
                                         **render_kwargs)
