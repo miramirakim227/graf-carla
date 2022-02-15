@@ -105,7 +105,7 @@ if __name__ == '__main__':
     )
 
     # input transform
-    img_to_patch = ImgToPatch(generator.ray_sampler, hwfr[:3])
+    img_to_patch = ImgToPatch(generator.ray_sampler, hwfr[:3])      # mira: make image patch
 
     # Register modules to checkpoint
     checkpoint_io.register_modules(
