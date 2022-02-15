@@ -4,6 +4,7 @@ from ..utils import sample_on_sphere, look_at, to_sphere
 from ..transforms import FullRaySampler
 from submodules.nerf_pytorch.run_nerf_mod import render, run_network            # import conditional render
 from functools import partial
+from .resnet import resnet18
 
 
 class Generator(object):
@@ -44,11 +45,20 @@ class Generator(object):
         self.use_test_kwargs = False
 
         self.render = partial(render, H=self.H, W=self.W, focal=self.focal, chunk=self.chunk)
+        '''풀기!
+        self.encoder = resnet18(pretrained=True, shape_dim=self.z_dim, app_dim=self.z_dim)
+        '''
 
     def __call__(self, z, y=None, rays=None):
         bs = z.shape[0]
+        '''풀기!
+        rotmat, shape, appearance = self.encoder(img)   # mira: image의 output을 여기서 예측
+
         if rays is None:
-            rays = torch.cat([self.sample_rays() for _ in range(bs)], dim=1)
+            rays = torch.cat([self.sample_rays(rotmat) for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
+        '''
+        if rays is None:
+            rays = torch.cat([self.sample_rays() for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
 
         render_kwargs = self.render_kwargs_test if self.use_test_kwargs else self.render_kwargs_train
         render_kwargs = dict(render_kwargs)        # copy
@@ -69,8 +79,20 @@ class Generator(object):
                 (rays_radius.min(), rays_radius.max(), shift.min(), shift.max())
             
 
-        render_kwargs['features'] = z
-        rgb, disp, acc, extras = render(self.H, self.W, self.focal, chunk=self.chunk, rays=rays,
+        # mira: 여기서 rays를 pose로부터 뽑을 수 있도록 하고 <- 그 위에 있는 pose를 찾기 
+        # mira: render 여기에 우리의 encoder 넣어줘도 괜찮음! 
+        # encoder output으로 camera, features 넣기 
+        # self.render를 찾아 나서기!
+
+        # image encoder 넣기! 
+        # latent shape, appearance는 어디있음..?
+        # mira: 아... features sampling이 z로 이미 들어가네.... 오... 그러면 render kwargs에 dimension 맞춰서 넣어주면 될듯..
+        render_kwargs['features'] = z   # B, 256 -> minus plus 골고루 들어감스트 
+        
+        import pdb 
+        pdb.set_trace()
+        # mira: 여기에 render가 있음! 여기에 camera 넣으면 됨!
+        rgb, disp, acc, extras = render(self.H, self.W, self.focal, chunk=self.chunk, rays=rays, 
                                         **render_kwargs)
 
         rays_to_output = lambda x: x.view(len(x), -1) * 2 - 1      # (BxN_samples)xC
@@ -103,10 +125,15 @@ class Generator(object):
 
         RT = np.concatenate([R, loc.reshape(3, 1)], axis=1)
         RT = torch.Tensor(RT.astype(np.float32))
+        # mira: check camera pose translation, rotation 확인 
+        # mira: check 여기선 radius를 조정하는데.. 우리도 그렇게 해도 되는지 아니면 데이터마다 지금처럼 radius와 그에 따른 near, far를 각각 설정해줘야 하는지
+        # mira: 그러면 우리도.. 아예 loc을 예측하자 
         return RT
 
-    def sample_rays(self):
-        pose = self.sample_pose()
+    def sample_rays(self):  # pose도 input argument로 넣어주기. dimension 맞춰주기!
+        # mira: expect uv, range는 dataset의 uv에 맞게 정해져있음 
+        pose = self.sample_pose()   # mira: 여기서 pose distribution 찾아보기, 적어도 pose어떻게 생겼는지 확인해보기
+        # mira: 그리고 pose dimension도 확인해보기
         sampler = self.val_ray_sampler if self.use_test_kwargs else self.ray_sampler
         batch_rays, _, _ = sampler(self.H, self.W, self.focal, pose)
         return batch_rays

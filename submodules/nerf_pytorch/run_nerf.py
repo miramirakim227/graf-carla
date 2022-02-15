@@ -51,14 +51,14 @@ def run_network(inputs, viewdirs, fn, embed_fn, embeddirs_fn, netchunk=1024*64):
 def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
 
     all_ret = {}
-    for i in range(0, rays_flat.shape[0], chunk):
-        ret = render_rays(rays_flat[i:i+chunk], **kwargs)
+    for i in range(0, rays_flat.shape[0], chunk):   # mira: ray 갯수마다 return 값을 내뱉음, 근데 이 r
+        ret = render_rays(rays_flat[i:i+chunk], **kwargs)   # chunk: ray 갯수 -> 32x32x32  <- shape, appearance를 여기에 넣어주면 됨.. <- render_rays
         for k in ret:
             if k not in all_ret:
                 all_ret[k] = []
             all_ret[k].append(ret[k])
 
-    all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
+    all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}   # 맨 마지막꺼가 전체 torch.cat을 가지고 있음!
     return all_ret
 
 
@@ -98,7 +98,7 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
         rays = torch.cat([rays, viewdirs], -1)
 
     # Render and reshape
-    all_ret = batchify_rays(rays, chunk, **kwargs)
+    all_ret = batchify_rays(rays, chunk, **kwargs)  # features를 여기에 넣어주면 됨.. + pose도 여기에 넣어주면 됨! <- pose, features를 이미지에서 뽑으면 됨.
     for k in all_ret:
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
@@ -331,6 +331,7 @@ def render_rays(ray_batch,
 
         run_fn = network_fn if network_fine is None else network_fine
 #         raw = run_network(pts, fn=run_fn)
+        # mira: 여기에 features를 따로 넣어주지 않아서 더 안쪽에서 random sampling을 함. 최대한 밖으로 가져오기..!
         raw = network_query_fn(pts, viewdirs, run_fn)
 
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)

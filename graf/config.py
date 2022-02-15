@@ -109,6 +109,7 @@ def get_render_poses(radius, angle_range=(0, 360), theta=0, N=40, swap_angles=Fa
         R = look_at(loc)[0]
         RT = np.concatenate([R, loc.reshape(3, 1)], axis=1)
         poses.append(RT)
+        # mira: 여기서 RT의 흐름에 맞게 GT를 넣어주어야 함 
     return torch.from_numpy(np.stack(poses))
 
 
