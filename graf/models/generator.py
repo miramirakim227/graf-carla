@@ -196,7 +196,7 @@ class Generator(object):
         import pdb 
         pdb.set_trace()
         if pred_pose is not None:
-            pose = pred_pose
+            pose = torch.cat([pred_pose, pred_pose[:, -1].unsqueeze(-1)*self.radius], dim=-1)
         else:
             pose = self.sample_pose()   # mira: 여기서 pose distribution 찾아보기, 적어도 pose어떻게 생겼는지 확인해보기
         # mira: 그리고 pose dimension도 확인해보기

@@ -1,4 +1,4 @@
-expname: check3
+expname: recon-predcam-lr2e-5
 data:
   datadir: /root/dataset2/carla
   type: carla
