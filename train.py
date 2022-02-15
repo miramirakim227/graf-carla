@@ -140,6 +140,7 @@ if __name__ == '__main__':
     ytest = torch.zeros(ntest)
     ztest = zdist.sample((ntest,))
     ptest = torch.stack([generator.sample_pose() for i in range(ntest)])
+    # mira: 얘는 test time에서 보여주려고 visualize함 -> 일단 내비두기 -> visualize 건들 떄 건들기
     if n_test_samples_with_same_shape_code > 0:
         ntest *= n_test_samples_with_same_shape_code
         ytest = ytest.repeat(n_test_samples_with_same_shape_code)
@@ -230,7 +231,7 @@ if __name__ == '__main__':
             rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
             # Discriminator updates
-            z = zdist.sample((batch_size,))
+            z = zdist.sample((batch_size,))   # mira: generator에 들어갈 latent shape-appearance를 sampling
             dloss, reg = trainer.discriminator_trainstep(rgbs, y=y, z=z)
             logger.add('losses', 'discriminator', dloss, it=it)
             logger.add('losses', 'regularizer', reg, it=it)
@@ -239,7 +240,7 @@ if __name__ == '__main__':
             if config['nerf']['decrease_noise']:
               generator.decrease_nerf_noise(it)
 
-            z = zdist.sample((batch_size,))
+            z = zdist.sample((batch_size,))  # mira: generator에 들어갈 latent shape-appearance를 sampling
             gloss = trainer.generator_trainstep(y=y, z=z)
             logger.add('losses', 'generator', gloss, it=it)
 

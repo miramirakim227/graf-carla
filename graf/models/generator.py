@@ -89,8 +89,6 @@ class Generator(object):
         # mira: 아... features sampling이 z로 이미 들어가네.... 오... 그러면 render kwargs에 dimension 맞춰서 넣어주면 될듯..
         render_kwargs['features'] = z   # B, 256 -> minus plus 골고루 들어감스트 
         
-        import pdb 
-        pdb.set_trace()
         # mira: 여기에 render가 있음! 여기에 camera 넣으면 됨!
         rgb, disp, acc, extras = render(self.H, self.W, self.focal, chunk=self.chunk, rays=rays, 
                                         **render_kwargs)

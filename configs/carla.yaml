@@ -1,5 +1,4 @@
-expname: check
-data:
+expname: recon-camGT
   imsize: 256
   datadir: /root/dataset2/carla
   type: carla
