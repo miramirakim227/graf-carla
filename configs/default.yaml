@@ -63,9 +63,9 @@ training:
   model_average_reinit: false
   restart_every: -1
   save_best: fid
-  fid_every: 5000             # Valid for FID and KID
+  fid_every: 500000             # Valid for FID and KID
   print_every: 10
-  sample_every: 500
+  sample_every: 1000
   save_every: 900
-  backup_every: 50000
+  backup_every: 5000
   video_every: 10000

@@ -124,7 +124,8 @@ if __name__ == '__main__':
     checkpoint_io.register_modules(**{k + '_test': v for k, v in generator_test.module_dict.items()})
 
     # Evaluator
-    evaluator = Evaluator(fid_kid, generator_test, zdist, ydist,
+    render_radius = config['data']['radius']
+    evaluator = Evaluator(fid_kid, generator_test, render_radius, zdist, ydist,
                           batch_size=batch_size, device=device)
 
     # Train

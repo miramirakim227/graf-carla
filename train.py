@@ -4,6 +4,7 @@ from os import path
 import time
 import copy
 import torch
+import torchvision
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -164,7 +165,8 @@ if __name__ == '__main__':
         generator_test = generator
 
     # Evaluator
-    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist,
+    render_radius = config['data']['radius']
+    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist, render_radius,
                           batch_size=batch_size, device=device, inception_nsamples=33)
 
     # Initialize fid+kid evaluator
@@ -237,14 +239,22 @@ if __name__ == '__main__':
                 # Sample patches for real data
                 rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
-                # Generators updates
-                if config['nerf']['decrease_noise']:
-                    generator.decrease_nerf_noise(it)
+                # Discriminator updates 
+                # dloss, reg = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
+                # logger.add('losses', 'discriminator', dloss, it=it)
+                # logger.add('losses', 'regularizer', reg, it=it)
 
-                gloss, recon_loss, cam_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                # if config['nerf']['decrease_noise']:
+                #     generator.decrease_nerf_noise(it)
+                dloss = torch.zeros(1).cuda()
+                reg = torch.zeros(1).cuda()
+
+                # Generators updates
+                gloss, recon_loss, cam_loss, gan_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
                 logger.add('losses', 'cam_loss', cam_loss, it=it)
+                logger.add('losses', 'gan_loss', gan_loss, it=it)
 
                 if config['training']['take_model_average']:
                     update_average(generator_test, generator,
@@ -252,12 +262,12 @@ if __name__ == '__main__':
 
                 # Update learning rate
                 g_scheduler.step()
-                d_scheduler.step()
+                #d_scheduler.step()
 
-                d_lr = d_optimizer.param_groups[0]['lr']
+                #d_lr = d_optimizer.param_groups[0]['lr']
                 g_lr = g_optimizer.param_groups[0]['lr']
 
-                logger.add('learning_rates', 'discriminator', d_lr, it=it)
+                #logger.add('learning_rates', 'discriminator', d_lr, it=it)
                 logger.add('learning_rates', 'generator', g_lr, it=it)
 
                 dt = time.time() - t_it
@@ -267,20 +277,26 @@ if __name__ == '__main__':
                     g_loss_last = logger.get_last('losses', 'generator')
                     recon_loss_last = logger.get_last('losses', 'recon_loss')
                     cam_loss_last = logger.get_last('losses', 'cam_loss')
+                    gan_loss_last = logger.get_last('losses', 'gan_loss')
+                    d_loss_last = logger.get_last('losses', 'discriminator')
+                    d_reg_last = logger.get_last('losses', 'regularizer')
 
-                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f'
-                        % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last))
+                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, fake_g_loss = %.4f, d_loss = %.4f, reg=%.4f'
+                        % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))
 
                     # g_loss_last = logger.get_last('losses', 'generator')
-                    # d_loss_last = logger.get_last('losses', 'discriminator')
-                    # d_reg_last = logger.get_last('losses', 'regularizer')
+                    d_loss_last = logger.get_last('losses', 'discriminator')
+                    d_reg_last = logger.get_last('losses', 'regularizer')
                     # print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, d_loss = %.4f, reg=%.4f'
                     #     % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, d_loss_last, d_reg_last))
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
-                    rgb, depth, acc = evaluator.create_samples(ztest.to(device), poses=ptest)
-                    logger.add_imgs(rgb, 'rgb', it)     # mira: 여기서 이미지들 저장 
+                    # 여기서 새로운 샘플들에 대한 분포와 
+                    rgb_set, depth, acc = evaluator.create_samples(x_real, GT_pose) #val_loader..??
+                    rgb = torchvision.utils.make_grid(rgb_set, nrow=8)
+                    #import pdb; pdb.set_trace()
+                    logger.add_imgs(rgb, 'rgb', it)
                     logger.add_imgs(depth, 'depth', it)
                     logger.add_imgs(acc, 'acc', it)
 
