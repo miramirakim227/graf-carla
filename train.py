@@ -4,6 +4,7 @@ from os import path
 import time
 import copy
 import torch
+import torchvision
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -164,7 +165,8 @@ if __name__ == '__main__':
         generator_test = generator
 
     # Evaluator
-    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist,
+    render_radius = config['data']['radius']
+    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist, render_radius,
                           batch_size=batch_size, device=device, inception_nsamples=33)
 
     # Initialize fid+kid evaluator
@@ -238,12 +240,14 @@ if __name__ == '__main__':
                 rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
                 # Discriminator updates 
-                dloss, reg = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
-                logger.add('losses', 'discriminator', dloss, it=it)
-                logger.add('losses', 'regularizer', reg, it=it)
+                # dloss, reg = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
+                # logger.add('losses', 'discriminator', dloss, it=it)
+                # logger.add('losses', 'regularizer', reg, it=it)
 
-                if config['nerf']['decrease_noise']:
-                    generator.decrease_nerf_noise(it)
+                # if config['nerf']['decrease_noise']:
+                #     generator.decrease_nerf_noise(it)
+                dloss = torch.zeros(1).cuda()
+                reg = torch.zeros(1).cuda()
 
                 # Generators updates
                 gloss, recon_loss, cam_loss, gan_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
@@ -258,12 +262,12 @@ if __name__ == '__main__':
 
                 # Update learning rate
                 g_scheduler.step()
-                d_scheduler.step()
+                #d_scheduler.step()
 
-                d_lr = d_optimizer.param_groups[0]['lr']
+                #d_lr = d_optimizer.param_groups[0]['lr']
                 g_lr = g_optimizer.param_groups[0]['lr']
 
-                logger.add('learning_rates', 'discriminator', d_lr, it=it)
+                #logger.add('learning_rates', 'discriminator', d_lr, it=it)
                 logger.add('learning_rates', 'generator', g_lr, it=it)
 
                 dt = time.time() - t_it
@@ -288,7 +292,10 @@ if __name__ == '__main__':
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
-                    rgb, depth, acc = evaluator.create_samples(ztest.to(device), poses=ptest)
+                    # 여기서 새로운 샘플들에 대한 분포와 
+                    rgb_set, depth, acc = evaluator.create_samples(x_real, GT_pose) #val_loader..??
+                    rgb = torchvision.utils.make_grid(rgb_set, nrow=8)
+                    #import pdb; pdb.set_trace()
                     logger.add_imgs(rgb, 'rgb', it)
                     logger.add_imgs(depth, 'depth', it)
                     logger.add_imgs(acc, 'acc', it)

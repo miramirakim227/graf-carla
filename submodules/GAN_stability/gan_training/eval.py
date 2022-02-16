@@ -3,7 +3,7 @@ from GAN_stability.gan_training.metrics import inception_score
 
 
 class Evaluator(object):
-    def __init__(self, generator, zdist, ydist, batch_size=64,
+    def __init__(self, generator, zdist, ydist, radius, batch_size=64,
                  inception_nsamples=60000, device=None):
         self.generator = generator
         self.zdist = zdist
@@ -11,6 +11,7 @@ class Evaluator(object):
         self.inception_nsamples = inception_nsamples
         self.batch_size = batch_size
         self.device = device
+        self.radius = radius
 
     def compute_inception_score(self):
         self.generator.eval()
@@ -33,6 +34,7 @@ class Evaluator(object):
     def create_samples(self, z, y=None):
         self.generator.eval()
         batch_size = z.size(0)
+        #import pdb; pdb.set_trace()
         # Parse y
         if y is None:
             y = self.ydist.sample((batch_size,))
@@ -43,3 +45,17 @@ class Evaluator(object):
         with torch.no_grad():
             x = self.generator(z, y)
         return x
+    
+    # def create_samples(self, z, y=None):
+    #     self.generator.eval()
+    #     batch_size = z.size(0)
+    #     # Parse y
+    #     if y is None:
+    #         y = self.ydist.sample((batch_size,))
+    #     elif isinstance(y, int):
+    #         y = torch.full((batch_size,), y,
+    #                        device=self.device, dtype=torch.int64)
+    #     # Sample x
+    #     with torch.no_grad():
+    #         x = self.generator(z, y)
+    #     return x
