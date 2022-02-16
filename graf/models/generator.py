@@ -113,7 +113,6 @@ class Generator(object):
         else:
             return rgb, inds
 
-
     def decrease_nerf_noise(self, it):
         end_it = 5000
         if it < end_it:

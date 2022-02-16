@@ -233,7 +233,7 @@ if __name__ == '__main__':
                 x_real = x_real.to(device)
                 GT_pose = GT_pose.to(device)
 
-                shape, appearance, rotmat = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
+                shape, appearance = generator.encoder(x_real)   # mira: x_real, 전체 이미지를 input으로 받아서 encoder에 넣어줌
                 z = torch.cat([shape, appearance], dim=-1)
 
                 # Sample patches for real data
@@ -249,12 +249,9 @@ if __name__ == '__main__':
                 dloss = torch.zeros(1).cuda()
                 reg = torch.zeros(1).cuda()
 
-                # Generators updates
-                gloss, recon_loss, cam_loss, gan_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                gloss, recon_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
-                logger.add('losses', 'cam_loss', cam_loss, it=it)
-                logger.add('losses', 'gan_loss', gan_loss, it=it)
 
                 if config['training']['take_model_average']:
                     update_average(generator_test, generator,
@@ -276,13 +273,9 @@ if __name__ == '__main__':
                     # Print stats
                     g_loss_last = logger.get_last('losses', 'generator')
                     recon_loss_last = logger.get_last('losses', 'recon_loss')
-                    cam_loss_last = logger.get_last('losses', 'cam_loss')
-                    gan_loss_last = logger.get_last('losses', 'gan_loss')
-                    d_loss_last = logger.get_last('losses', 'discriminator')
-                    d_reg_last = logger.get_last('losses', 'regularizer')
 
-                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, fake_g_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                        % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))
+                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
+                        % (epoch_idx, it, g_loss_last, recon_loss_last))
 
                     # g_loss_last = logger.get_last('losses', 'generator')
                     d_loss_last = logger.get_last('losses', 'discriminator')
