@@ -38,14 +38,17 @@ class Trainer(object):
         trans_loss = self.recon_loss(GT_pose[:, :3, -1], pred_pose[:, :3, -1]*self.radius)
         camera_loss = rot_loss + trans_loss
 
-        gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight      # mira: weight 조정하기!
+        d_fake = self.discriminator(x_fake, y)
+        gan_loss = self.compute_loss(d_fake, 1)
+
+        gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight + gan_loss      # mira: weight 조정하기!
         gloss.backward()
 
         self.g_optimizer.step()
 
-        return gloss.item(), recon_loss, camera_loss
+        return gloss.item(), recon_loss.item(), camera_loss.item(), gan_loss.item()
 
-    def discriminator_trainstep(self, x_real, y, z):
+    def discriminator_trainstep(self, x_real, y, z, pred_pose=None):
         toggle_grad(self.generator, False)
         toggle_grad(self.discriminator, True)
         self.generator.train()
@@ -67,7 +70,7 @@ class Trainer(object):
 
         # On fake data
         with torch.no_grad():
-            x_fake = self.generator(z, y)
+            x_fake, _ = self.generator(z, y, pred_pose=pred_pose)
 
         x_fake.requires_grad_()
         d_fake = self.discriminator(x_fake, y)

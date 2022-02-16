@@ -48,19 +48,24 @@ class Generator(object):
         latent_dim = 128        
         self.encoder = resnet18(pretrained=True, shape_dim=latent_dim, app_dim=latent_dim)
 
-    def __call__(self, z, y=None, pred_pose=None, rays=None):
+    def __call__(self, z, y=None, pred_pose=None, rays=None, mode=None):
         bs = z.shape[0]
 
         # sample_ray를 pred_pose 기준으로 함..!
-        if rays is None:
-            ray_list = []
-            hw_list = []
-            for i in range(bs):
-                ray, hw = self.sample_rays(pred_pose[i])
-                ray_list.append(ray)
-                hw_list.append(hw)
-            rays = torch.cat(ray_list, dim=1)
-            inds = torch.stack(hw_list, dim=0)
+        if mode == 'eval':
+            if rays is None:
+                rays = torch.cat([self.sample_rays() for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
+                inds = None
+        else:
+            if rays is None:
+                ray_list = []
+                hw_list = []
+                for i in range(bs):
+                    ray, hw = self.sample_rays(pred_pose[i])
+                    ray_list.append(ray)
+                    hw_list.append(hw)
+                rays = torch.cat(ray_list, dim=1)
+                inds = torch.stack(hw_list, dim=0)
 
         render_kwargs = self.render_kwargs_test if self.use_test_kwargs else self.render_kwargs_train
         render_kwargs = dict(render_kwargs)        # copy
@@ -103,7 +108,11 @@ class Generator(object):
                    rays_to_output(acc), extras
 
         rgb = rays_to_output(rgb)
-        return rgb, inds
+        if mode == 'eval':
+            return rgb
+        else:
+            return rgb, inds
+
 
     def decrease_nerf_noise(self, it):
         end_it = 5000

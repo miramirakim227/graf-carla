@@ -1,4 +1,4 @@
-expname: recon-predcam-lr2e-5
+expname: recon-predcam-gan-lr2e-5
 data:
   datadir: /root/dataset2/carla
   type: carla
@@ -67,5 +67,5 @@ training:
   print_every: 10
   sample_every: 500
   save_every: 900
-  backup_every: 50000
+  backup_every: 5000
   video_every: 10000

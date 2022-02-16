@@ -36,8 +36,8 @@ class Trainer(TrainerBase):
 
         return recon_loss.item()
 
-    def discriminator_trainstep(self, x_real, y, z):
-        return super(Trainer, self).discriminator_trainstep(x_real, y, z)       # spectral norm raises error for when using amp
+    def discriminator_trainstep(self, x_real, y, z, pred_pose=None):
+        return super(Trainer, self).discriminator_trainstep(x_real, y, z, pred_pose)       # spectral norm raises error for when using amp
 
 
 class Evaluator(EvaluatorBase):
@@ -74,7 +74,7 @@ class Evaluator(EvaluatorBase):
                 bs = len(z_i)
                 if rays_i is not None:
                     rays_i = rays_i.permute(1, 0, 2, 3).flatten(1, 2)       # Bx2x(HxW)xC -> 2x(BxHxW)x3
-                rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i)
+                rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
 
                 reshape = lambda x: x.view(bs, self.generator.H, self.generator.W, x.shape[1]).permute(0, 3, 1, 2)  # (NxHxW)xC -> NxCxHxW
                 rgb.append(reshape(rgb_i).cpu())
