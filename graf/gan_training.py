@@ -56,7 +56,7 @@ class Evaluator(EvaluatorBase):
         return self.generator.val_ray_sampler(self.generator.H, self.generator.W,
                                               self.generator.focal, pose)[0]
 
-    def create_samples(self, z, poses=None):
+    def create_samples(self, z, poses=None):        # mira: 여기를 건드려서 visualize되도록 할 것 
         self.generator.eval()
 
         N_samples = len(z)
