@@ -280,7 +280,7 @@ if __name__ == '__main__':
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
                     rgb, depth, acc = evaluator.create_samples(ztest.to(device), poses=ptest)
-                    logger.add_imgs(rgb, 'rgb', it)
+                    logger.add_imgs(rgb, 'rgb', it)     # mira: 여기서 이미지들 저장 
                     logger.add_imgs(depth, 'depth', it)
                     logger.add_imgs(acc, 'acc', it)
 
