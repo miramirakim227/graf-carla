@@ -1,4 +1,4 @@
-expname: GTcamtest2
+expname: recon-pred-gan
 data:
   datadir: /root/dataset2/carla
   type: carla

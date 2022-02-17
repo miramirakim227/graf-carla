@@ -240,14 +240,14 @@ if __name__ == '__main__':
                 rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
                 # Discriminator updates 
-                # dloss, reg = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
-                # logger.add('losses', 'discriminator', dloss, it=it)
-                # logger.add('losses', 'regularizer', reg, it=it)
+                dloss, reg, dreal, dfake = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
+                logger.add('losses', 'discriminator', dloss, it=it)
+                logger.add('losses', 'regularizer', reg, it=it)
+                logger.add('losses', 'd_real', dreal, it=it)
+                logger.add('losses', 'd_fake', dfake, it=it)
 
                 # if config['nerf']['decrease_noise']:
                 #     generator.decrease_nerf_noise(it)
-                dloss = torch.zeros(1).cuda()
-                reg = torch.zeros(1).cuda()
 
                 # Generators updates
                 gloss, recon_loss, cam_loss, gan_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
@@ -262,12 +262,12 @@ if __name__ == '__main__':
 
                 # Update learning rate
                 g_scheduler.step()
-                #d_scheduler.step()
+                d_scheduler.step()
 
-                #d_lr = d_optimizer.param_groups[0]['lr']
+                d_lr = d_optimizer.param_groups[0]['lr']
                 g_lr = g_optimizer.param_groups[0]['lr']
 
-                #logger.add('learning_rates', 'discriminator', d_lr, it=it)
+                logger.add('learning_rates', 'discriminator', d_lr, it=it)
                 logger.add('learning_rates', 'generator', g_lr, it=it)
 
                 dt = time.time() - t_it
@@ -281,14 +281,8 @@ if __name__ == '__main__':
                     d_loss_last = logger.get_last('losses', 'discriminator')
                     d_reg_last = logger.get_last('losses', 'regularizer')
 
-                    print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, fake_g_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                        % (epoch_idx, it, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))
-
-                    # g_loss_last = logger.get_last('losses', 'generator')
-                    d_loss_last = logger.get_last('losses', 'discriminator')
-                    d_reg_last = logger.get_last('losses', 'regularizer')
-                    # print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                    #     % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, d_loss_last, d_reg_last))
+                    print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f'
+                        % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
