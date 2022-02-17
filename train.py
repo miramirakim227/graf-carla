@@ -48,6 +48,7 @@ if __name__ == '__main__':
     save_every = config['training']['save_every']
     backup_every = config['training']['backup_every']
     save_best = config['training']['save_best']
+
     assert save_best=='fid' or save_best=='kid', 'Invalid save best metric!'
 
     out_dir = os.path.join(config['training']['outdir'], config['expname'])
@@ -212,7 +213,10 @@ if __name__ == '__main__':
         use_amp=config['training']['use_amp'],
         gan_type=config['training']['gan_type'],
         reg_type=config['training']['reg_type'],
-        reg_param=config['training']['reg_param']
+        reg_param=config['training']['reg_param'],
+        cam_weight=config['training']['cam_weight'],
+        recon_weight=config['training']['recon_weight'],
+        radius=config['data']['radius']
     )
 
     print('it {}: start with LR:\n\td_lr: {}\tg_lr: {}'.format(it, d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
@@ -250,11 +254,10 @@ if __name__ == '__main__':
                 #     generator.decrease_nerf_noise(it)
 
                 # Generators updates
-                gloss, recon_loss, cam_loss, gan_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                gloss, recon_loss, cam_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
                 logger.add('losses', 'cam_loss', cam_loss, it=it)
-                logger.add('losses', 'gan_loss', gan_loss, it=it)
 
                 if config['training']['take_model_average']:
                     update_average(generator_test, generator,
@@ -277,9 +280,6 @@ if __name__ == '__main__':
                     g_loss_last = logger.get_last('losses', 'generator')
                     recon_loss_last = logger.get_last('losses', 'recon_loss')
                     cam_loss_last = logger.get_last('losses', 'cam_loss')
-                    gan_loss_last = logger.get_last('losses', 'gan_loss')
-                    d_loss_last = logger.get_last('losses', 'discriminator')
-                    d_reg_last = logger.get_last('losses', 'regularizer')
 
                     print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f'
                         % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))
@@ -314,13 +314,13 @@ if __name__ == '__main__':
                         logger.save_stats('stats_best.p')
                         torch.cuda.empty_cache()
 
-                # (vi) Create video if necessary
-                if ((it+1) % config['training']['video_every']) == 0:
-                    N_samples = 4
-                    zvid = zdist.sample((N_samples,))
+                # # (vi) Create video if necessary
+                # if ((it+1) % config['training']['video_every']) == 0:
+                #     N_samples = 4
+                #     zvid = zdist.sample((N_samples,))
 
-                    basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
-                    evaluator.make_video(basename, zvid, render_poses, as_gif=False)
+                #     basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
+                #     evaluator.make_video(basename, zvid, render_poses, as_gif=False)
 
                 # (i) Backup if necessary
                 if ((it + 1) % backup_every) == 0:

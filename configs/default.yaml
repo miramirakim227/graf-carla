@@ -69,3 +69,5 @@ training:
   save_every: 900
   backup_every: 5000
   video_every: 10000
+  cam_weight: 10
+  recon_weight: 100            
