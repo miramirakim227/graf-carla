@@ -1,4 +1,4 @@
-expname: recon-pred-gan-5
+expname: recon-pred-10-gan-1
 data:
   datadir: /root/dataset2/carla
   type: carla
@@ -71,4 +71,4 @@ training:
   video_every: 10000
   cam_weight: 10
   recon_weight: 100            
-  gan_weight: 5   
+  gan_weight: 1   
