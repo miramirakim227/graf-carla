@@ -282,6 +282,7 @@ if __name__ == '__main__':
                     logger.add_imgs(depth, 'depth', it)
                     logger.add_imgs(acc, 'acc', it)
 
+                '''
                 # (v) Compute fid if necessary
                 if fid_every > 0 and ((it + 1) % fid_every) == 0:
                     fid, kid = evaluator.compute_fid_kid()
@@ -301,14 +302,14 @@ if __name__ == '__main__':
                         checkpoint_io.save('model_best.pt', it=it, epoch_idx=epoch_idx, fid_best=fid_best, kid_best=kid_best)
                         logger.save_stats('stats_best.p')
                         torch.cuda.empty_cache()
+                '''
+                # # (vi) Create video if necessary
+                # if ((it+1) % config['training']['video_every']) == 0:
+                #     N_samples = 4
+                #     zvid = zdist.sample((N_samples,))
 
-                # (vi) Create video if necessary
-                if ((it+1) % config['training']['video_every']) == 0:
-                    N_samples = 4
-                    zvid = zdist.sample((N_samples,))
-
-                    basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
-                    evaluator.make_video(basename, zvid, render_poses, as_gif=False)
+                #     basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
+                #     evaluator.make_video(basename, zvid, render_poses, as_gif=False)
 
                 # (i) Backup if necessary
                 if ((it + 1) % backup_every) == 0:
