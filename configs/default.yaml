@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 expname: GTcamtest2
+=======
+expname: recon-pred-10-gan-1
+>>>>>>> 5ae9fe9f96cde350638e3c2d5741885cf61a9f12
 data:
   datadir: /root/dataset2/carla
   type: carla
@@ -63,9 +67,12 @@ training:
   model_average_reinit: false
   restart_every: -1
   save_best: fid
-  fid_every: 5000             # Valid for FID and KID
+  fid_every: 500000             # Valid for FID and KID
   print_every: 10
-  sample_every: 500
+  sample_every: 1000
   save_every: 900
   backup_every: 5000
   video_every: 10000
+  cam_weight: 10
+  recon_weight: 100            
+  gan_weight: 1   

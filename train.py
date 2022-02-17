@@ -4,6 +4,7 @@ from os import path
 import time
 import copy
 import torch
+import torchvision
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -47,6 +48,7 @@ if __name__ == '__main__':
     save_every = config['training']['save_every']
     backup_every = config['training']['backup_every']
     save_best = config['training']['save_best']
+
     assert save_best=='fid' or save_best=='kid', 'Invalid save best metric!'
 
     out_dir = os.path.join(config['training']['outdir'], config['expname'])
@@ -164,7 +166,8 @@ if __name__ == '__main__':
         generator_test = generator
 
     # Evaluator
-    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist,
+    render_radius = config['data']['radius']
+    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist, render_radius,
                           batch_size=batch_size, device=device, inception_nsamples=33)
 
     # Initialize fid+kid evaluator
@@ -210,7 +213,11 @@ if __name__ == '__main__':
         use_amp=config['training']['use_amp'],
         gan_type=config['training']['gan_type'],
         reg_type=config['training']['reg_type'],
-        reg_param=config['training']['reg_param']
+        reg_param=config['training']['reg_param'],
+        cam_weight=config['training']['cam_weight'],
+        recon_weight=config['training']['recon_weight'],
+        gan_weight=config['training']['gan_weight'],
+        radius=config['data']['radius']
     )
 
     print('it {}: start with LR:\n\td_lr: {}\tg_lr: {}'.format(it, d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
@@ -237,9 +244,12 @@ if __name__ == '__main__':
                 # Sample patches for real data
                 rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
-                # Generators updates
-                if config['nerf']['decrease_noise']:
-                    generator.decrease_nerf_noise(it)
+                # Discriminator updates 
+                dloss, reg, dreal, dfake = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
+                logger.add('losses', 'discriminator', dloss, it=it)
+                logger.add('losses', 'regularizer', reg, it=it)
+                logger.add('losses', 'd_real', dreal, it=it)
+                logger.add('losses', 'd_fake', dfake, it=it)
 
                 gloss, recon_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
@@ -269,15 +279,15 @@ if __name__ == '__main__':
                     print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
                         % (epoch_idx, it, g_loss_last, recon_loss_last))
 
-                    # g_loss_last = logger.get_last('losses', 'generator')
-                    # d_loss_last = logger.get_last('losses', 'discriminator')
-                    # d_reg_last = logger.get_last('losses', 'regularizer')
-                    # print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                    #     % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, d_loss_last, d_reg_last))
+                    print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f, d_real_loss = %.4f, d_fake_loss=%.4f'
+                        % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last, d_real_loss_last, d_fake_loss_last))
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
-                    rgb, depth, acc = evaluator.create_samples(ztest.to(device), poses=ptest)
+                    # 여기서 새로운 샘플들에 대한 분포와 
+                    rgb_set, depth, acc = evaluator.create_samples(x_real, GT_pose) #val_loader..??
+                    rgb = torchvision.utils.make_grid(rgb_set, nrow=8)
+                    #import pdb; pdb.set_trace()
                     logger.add_imgs(rgb, 'rgb', it)
                     logger.add_imgs(depth, 'depth', it)
                     logger.add_imgs(acc, 'acc', it)

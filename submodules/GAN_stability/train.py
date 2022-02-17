@@ -156,9 +156,14 @@ d_scheduler = build_lr_scheduler(d_optimizer, config, last_epoch=it)
 # Trainer
 trainer = Trainer(
     generator, discriminator, g_optimizer, d_optimizer,
+    use_amp=config['training']['use_amp'],
     gan_type=config['training']['gan_type'],
     reg_type=config['training']['reg_type'],
-    reg_param=config['training']['reg_param']
+    reg_param=config['training']['reg_param'],
+    cam_weight=config['training']['cam_weight'],
+    recon_weight=config['training']['recon_weight'],
+    gan_weight=config['training']['gan_weight'],
+    radius=config['data']['radius']
 )
 
 # Training loop
@@ -203,6 +208,8 @@ while True:
         print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
               % (epoch_idx, it, g_loss_last, recon_loss_last))
 
+
+        
         # (i) Sample if necessary
         if (it % config['training']['sample_every']) == 0:
             print('Creating samples...')
