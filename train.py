@@ -213,6 +213,7 @@ if __name__ == '__main__':
         use_amp=config['training']['use_amp'],
         gan_type=config['training']['gan_type'],
         reg_type=config['training']['reg_type'],
+        reg_param=config['training']['reg_param'],
         cam_weight=config['training']['cam_weight'],
         recon_weight=config['training']['recon_weight'],
         radius=config['data']['radius']
@@ -304,13 +305,13 @@ if __name__ == '__main__':
                         logger.save_stats('stats_best.p')
                         torch.cuda.empty_cache()
 
-                # (vi) Create video if necessary
-                if ((it+1) % config['training']['video_every']) == 0:
-                    N_samples = 4
-                    zvid = zdist.sample((N_samples,))
+                # # (vi) Create video if necessary
+                # if ((it+1) % config['training']['video_every']) == 0:
+                #     N_samples = 4
+                #     zvid = zdist.sample((N_samples,))
 
-                    basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
-                    evaluator.make_video(basename, zvid, render_poses, as_gif=False)
+                #     basename = os.path.join(out_dir, '{}_{:06d}_'.format(os.path.basename(config['expname']), it))
+                #     evaluator.make_video(basename, zvid, render_poses, as_gif=False)
 
                 # (i) Backup if necessary
                 if ((it + 1) % backup_every) == 0:

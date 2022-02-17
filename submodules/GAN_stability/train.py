@@ -156,12 +156,13 @@ d_scheduler = build_lr_scheduler(d_optimizer, config, last_epoch=it)
 # Trainer
 trainer = Trainer(
     generator, discriminator, g_optimizer, d_optimizer,
+    use_amp=config['training']['use_amp'],
     gan_type=config['training']['gan_type'],
     reg_type=config['training']['reg_type'],
     reg_param=config['training']['reg_param'],
     cam_weight=config['training']['cam_weight'],
-    recon_weight=config['training']['recon_weight']
-
+    recon_weight=config['training']['recon_weight'],
+    radius=config['data']['radius']
 )
 
 # Training loop
