@@ -48,8 +48,13 @@ training:
   batch_size: 8
   chunk: 32768                # 1024*32
   netchunk: 65536             # 1024*64
+<<<<<<< HEAD
   lr_g: 0.0001
   lr_d: 0.00005
+=======
+  lr_g: 0.0005
+  lr_d: 0.0001
+>>>>>>> b081cd4cc5dd6a8b19b8e161e8862ff1e5920a08
   lr_anneal: 0.5
   lr_anneal_every: 50000,100000,200000
   equalize_lr: False
@@ -63,9 +68,11 @@ training:
   model_average_reinit: false
   restart_every: -1
   save_best: fid
-  fid_every: 5000             # Valid for FID and KID
+  fid_every: 500000             # Valid for FID and KID
   print_every: 10
-  sample_every: 500
+  sample_every: 1000
   save_every: 900
   backup_every: 5000
   video_every: 10000
+  cam_weight: 1
+  recon_weight: 100            

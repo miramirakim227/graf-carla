@@ -4,6 +4,7 @@ from os import path
 import time
 import copy
 import torch
+import torchvision
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
@@ -48,6 +49,7 @@ if __name__ == '__main__':
     save_every = config['training']['save_every']
     backup_every = config['training']['backup_every']
     save_best = config['training']['save_best']
+
     assert save_best=='fid' or save_best=='kid', 'Invalid save best metric!'
 
     out_dir = os.path.join(config['training']['outdir'], config['expname'])
@@ -165,7 +167,8 @@ if __name__ == '__main__':
         generator_test = generator
 
     # Evaluator
-    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist,
+    render_radius = config['data']['radius']
+    evaluator = Evaluator(fid_every > 0, generator_test, zdist, ydist, render_radius,
                           batch_size=batch_size, device=device, inception_nsamples=33)
 
     # Initialize fid+kid evaluator
@@ -211,7 +214,10 @@ if __name__ == '__main__':
         use_amp=config['training']['use_amp'],
         gan_type=config['training']['gan_type'],
         reg_type=config['training']['reg_type'],
-        reg_param=config['training']['reg_param']
+        reg_param=config['training']['reg_param'],
+        cam_weight=config['training']['cam_weight'],
+        recon_weight=config['training']['recon_weight'],
+        radius=config['data']['radius']
     )
 
     print('it {}: start with LR:\n\td_lr: {}\tg_lr: {}'.format(it, d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
@@ -239,10 +245,14 @@ if __name__ == '__main__':
                 rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
                 # Generators updates
+<<<<<<< HEAD
                 if config['nerf']['decrease_noise']:
                     generator.decrease_nerf_noise(it)
 
                 gloss, recon_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose, GT_pose=GT_pose)
+=======
+                gloss, recon_loss, cam_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+>>>>>>> b081cd4cc5dd6a8b19b8e161e8862ff1e5920a08
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
 
@@ -252,12 +262,12 @@ if __name__ == '__main__':
 
                 # Update learning rate
                 g_scheduler.step()
-                d_scheduler.step()
+                #d_scheduler.step()
 
-                d_lr = d_optimizer.param_groups[0]['lr']
+                #d_lr = d_optimizer.param_groups[0]['lr']
                 g_lr = g_optimizer.param_groups[0]['lr']
 
-                logger.add('learning_rates', 'discriminator', d_lr, it=it)
+                #logger.add('learning_rates', 'discriminator', d_lr, it=it)
                 logger.add('learning_rates', 'generator', g_lr, it=it)
 
                 dt = time.time() - t_it
@@ -270,11 +280,6 @@ if __name__ == '__main__':
                     print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
                         % (epoch_idx, it, g_loss_last, recon_loss_last))
 
-                    # g_loss_last = logger.get_last('losses', 'generator')
-                    # d_loss_last = logger.get_last('losses', 'discriminator')
-                    # d_reg_last = logger.get_last('losses', 'regularizer')
-                    # print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                    #     % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, d_loss_last, d_reg_last))
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):

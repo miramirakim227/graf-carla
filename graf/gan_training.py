@@ -36,8 +36,8 @@ class Trainer(TrainerBase):
 
         return recon_loss.item()
 
-    def discriminator_trainstep(self, x_real, y, z):
-        return super(Trainer, self).discriminator_trainstep(x_real, y, z)       # spectral norm raises error for when using amp
+    def discriminator_trainstep(self, x_real, y, z, pred_pose=None):
+        return super(Trainer, self).discriminator_trainstep(x_real, y, z, pred_pose)       # spectral norm raises error for when using amp
 
 
 class Evaluator(EvaluatorBase):
@@ -82,8 +82,14 @@ class Evaluator(EvaluatorBase):
         with torch.no_grad():
             # assert ray 갯수 전체 이미지 갯수  # 이미지 하나하나에 대해서 만들기 
             
+<<<<<<< HEAD
             shape, appearance= self.generator.encoder(img) #(B, 3, res, res)
             #import pdb; pdb.set_trace()
+=======
+            shape, appearance, rotmat = self.generator.encoder(img) #(B, 3, res, res)
+            #import pdb; pdb.set_trace()
+            poses = torch.cat([rotmat, rotmat[:, :, -1].unsqueeze(-1)*self.radius], dim=-1)
+>>>>>>> b081cd4cc5dd6a8b19b8e161e8862ff1e5920a08
             poses = GT_pose[:, :3, :]
             num_poses = poses.shape[0]
             z = torch.cat([shape, appearance], dim=-1)
