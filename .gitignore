@@ -1,6 +1,4 @@
 results
 
 
-__pycache__
-graf/__pycache__
-graf/models/__pycache__
+*.pyc
