@@ -76,17 +76,15 @@ class Evaluator(EvaluatorBase):
                 if rays_i is not None:
                     rays_i = rays_i.permute(1, 0, 2, 3).flatten(1, 2)       # Bx2x(HxW)xC -> 2x(BxHxW)x3
                 rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
-<<<<<<< HEAD
-=======
         '''
         rgb, disp, acc = [], [], []
         device = torch.device("cuda:0")
         with torch.no_grad():
             # assert ray 갯수 전체 이미지 갯수  # 이미지 하나하나에 대해서 만들기 
             
-            shape, appearance, rotmat = self.generator.encoder(img) #(B, 3, res, res)
+            shape, appearance = self.generator.encoder(img) #(B, 3, res, res)
             #import pdb; pdb.set_trace()
-            poses = torch.cat([rotmat, rotmat[:, :, -1].unsqueeze(-1)*self.radius], dim=-1)
+            # poses = torch.cat([GT_pose, rotmat[:, :, -1].unsqueeze(-1)*self.radius], dim=-1)
             poses = GT_pose[:, :3, :]
             num_poses = poses.shape[0]
             z = torch.cat([shape, appearance], dim=-1)
@@ -103,7 +101,6 @@ class Evaluator(EvaluatorBase):
                 
                 reshape = lambda x: x.view(bs, self.generator.H, self.generator.W, x.shape[1]).permute(0, 3, 1, 2)  # (NxHxW)xC -> NxCxHxW
                 rgb.append(reshape(rgb_i).cpu())
->>>>>>> 5ae9fe9f96cde350638e3c2d5741885cf61a9f12
 
             for z_i, rays_i in tqdm(zip(z_shape, rays), total=len(z_shape), desc='Create shape swap samples...'):
                 z_i = z_i.unsqueeze(0)

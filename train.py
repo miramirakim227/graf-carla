@@ -245,13 +245,13 @@ if __name__ == '__main__':
                 rgbs = img_to_patch(x_real.to(device))          # N_samples x C
 
                 # Discriminator updates 
-                dloss, reg, dreal, dfake = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=rotmat)
+                dloss, reg, dreal, dfake = trainer.discriminator_trainstep(rgbs, y=y, z=z, pred_pose=GT_pose[:, :3, :])
                 logger.add('losses', 'discriminator', dloss, it=it)
                 logger.add('losses', 'regularizer', reg, it=it)
                 logger.add('losses', 'd_real', dreal, it=it)
                 logger.add('losses', 'd_fake', dfake, it=it)
 
-                gloss, recon_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose, GT_pose=GT_pose)
+                gloss, recon_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=GT_pose[:, :3, :], GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
 
@@ -279,8 +279,8 @@ if __name__ == '__main__':
                     print('[epoch %0d, it %4d] g_loss = %.4f, recon_loss = %.4f'
                         % (epoch_idx, it, g_loss_last, recon_loss_last))
 
-                    print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f, d_real_loss = %.4f, d_fake_loss=%.4f'
-                        % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last, d_real_loss_last, d_fake_loss_last))
+                    print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f'
+                        % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last))
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):

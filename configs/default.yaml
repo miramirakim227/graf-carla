@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 expname: GTcamtest2
-=======
-expname: recon-pred-10-gan-1
->>>>>>> 5ae9fe9f96cde350638e3c2d5741885cf61a9f12
 data:
   datadir: /root/dataset2/carla
   type: carla
