@@ -214,7 +214,7 @@ if __name__ == '__main__':
         gan_type=config['training']['gan_type'],
         reg_type=config['training']['reg_type'],
         cam_weight=config['training']['cam_weight'],
-        recon_weight=config['training']['recon_weight']
+        recon_weight=config['training']['recon_weight'],
         radius=config['data']['radius']
     )
 
