@@ -158,7 +158,10 @@ trainer = Trainer(
     generator, discriminator, g_optimizer, d_optimizer,
     gan_type=config['training']['gan_type'],
     reg_type=config['training']['reg_type'],
-    reg_param=config['training']['reg_param']
+    reg_param=config['training']['reg_param'],
+    cam_weight=config['training']['cam_weight'],
+    recon_weight=config['training']['recon_weight']
+
 )
 
 # Training loop

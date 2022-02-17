@@ -8,7 +8,7 @@ from torch import autograd
 
 class Trainer(object):
     def __init__(self, generator, discriminator, g_optimizer, d_optimizer,
-                 gan_type, reg_type, reg_param):
+                 gan_type, reg_type, reg_param, cam_weight, recon_weight, radius):
         self.generator = generator
         self.discriminator = discriminator
         self.g_optimizer = g_optimizer
@@ -18,9 +18,9 @@ class Trainer(object):
         self.gan_type = gan_type
         self.reg_type = reg_type
         self.reg_param = reg_param
-        self.recon_weight = 100
-        self.cam_weight = 1
-        self.radius = 10
+        self.recon_weight = recon_weight
+        self.cam_weight = cam_weight
+        self.radius = radius
 
     def generator_trainstep(self, y, z, img=None, pred_pose=None, GT_pose=None):
         assert(y.size(0) == z.size(0))

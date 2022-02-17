@@ -48,6 +48,7 @@ if __name__ == '__main__':
     save_every = config['training']['save_every']
     backup_every = config['training']['backup_every']
     save_best = config['training']['save_best']
+
     assert save_best=='fid' or save_best=='kid', 'Invalid save best metric!'
 
     out_dir = os.path.join(config['training']['outdir'], config['expname'])
@@ -212,7 +213,9 @@ if __name__ == '__main__':
         use_amp=config['training']['use_amp'],
         gan_type=config['training']['gan_type'],
         reg_type=config['training']['reg_type'],
-        reg_param=config['training']['reg_param']
+        cam_weight=config['training']['cam_weight'],
+        recon_weight=config['training']['recon_weight']
+        radius=config['data']['radius']
     )
 
     print('it {}: start with LR:\n\td_lr: {}\tg_lr: {}'.format(it, d_optimizer.param_groups[0]['lr'], g_optimizer.param_groups[0]['lr']))
