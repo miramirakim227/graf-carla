@@ -1,4 +1,4 @@
-expname: recon-GTcam-lr2e-5
+expname: check-cam
 data:
   datadir: /root/dataset2/carla
   type: carla

@@ -14,11 +14,11 @@ class ImgToPatch(object):
         for img_i in img:
             pose = torch.eye(4)         # use dummy pose to infer pixel values
             _, selected_idcs, pixels_i = self.ray_sampler(H=self.hwf[0], W=self.hwf[1], focal=self.hwf[2], pose=pose)
+
             if selected_idcs is not None:
                 rgbs_i = img_i.flatten(1, 2).t()[selected_idcs]
             else:
-                rgbs_i = torch.nn.functional.grid_sample(img_i.unsqueeze(0), 
-                                     pixels_i.unsqueeze(0), mode='bilinear', align_corners=True)[0]
+                rgbs_i = torch.nn.functional.grid_sample(img_i.unsqueeze(0), pixels_i.unsqueeze(0), mode='bilinear', align_corners=True)[0]
                 rgbs_i = rgbs_i.flatten(1, 2).t()
             rgbs.append(rgbs_i)
 

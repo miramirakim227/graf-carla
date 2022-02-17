@@ -29,9 +29,9 @@ class Trainer(object):
         self.g_optimizer.zero_grad()
 
         x_fake, inds = self.generator(z=z, y=y, pred_pose=pred_pose)       # z = shape, appearance
-        GT_sampled = torch.nn.functional.grid_sample(img, 
-                                inds, mode='bilinear', align_corners=True)       # 이거인가 혹은 반대인가..
-        GT_sampled = GT_sampled.permute(0, 2, 3, 1).reshape(-1, 3)
+
+        GT_sampled = torch.nn.functional.grid_sample(img, inds, mode='bilinear', align_corners=True)       # 이거인가 혹은 반대인가..
+        GT_sampled = GT_sampled.flatten(2, 3).transpose(1, 2).flatten(0, 1)
         recon_loss = self.recon_loss(x_fake, GT_sampled) 
     
         gloss = recon_loss * self.recon_weight       # mira: weight 조정하기!
