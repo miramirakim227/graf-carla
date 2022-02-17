@@ -162,6 +162,7 @@ trainer = Trainer(
     reg_param=config['training']['reg_param'],
     cam_weight=config['training']['cam_weight'],
     recon_weight=config['training']['recon_weight'],
+    gan_weight=config['training']['gan_weight'],
     radius=config['data']['radius']
 )
 
@@ -204,6 +205,7 @@ while True:
         g_loss_last = logger.get_last('losses', 'generator')
         recon_loss_last = logger.get_last('losses', 'recon_loss')
         cam_loss_last = logger.get_last('losses', 'cam_loss')
+        gan_loss_last = logger.get_last('losses', 'gan_loss')
 
         print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f'
                                             % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))

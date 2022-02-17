@@ -8,7 +8,7 @@ from torch import autograd
 
 class Trainer(object):
     def __init__(self, generator, discriminator, g_optimizer, d_optimizer,
-                 gan_type, reg_type, reg_param, cam_weight, recon_weight, radius):
+                 gan_type, reg_type, reg_param, cam_weight, recon_weight, gan_weight, radius):
         self.generator = generator
         self.discriminator = discriminator
         self.g_optimizer = g_optimizer
@@ -20,6 +20,7 @@ class Trainer(object):
         self.reg_param = reg_param
         self.recon_weight = recon_weight
         self.cam_weight = cam_weight
+        self.gan_weight = gan_weight
         self.radius = radius
 
     def generator_trainstep(self, y, z, img=None, pred_pose=None, GT_pose=None):
@@ -41,12 +42,12 @@ class Trainer(object):
         d_fake = self.discriminator(x_fake, y)
         gan_loss = self.compute_loss(d_fake, 1)
 
-        gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight + gan_loss      # mira: weight 조정하기!
+        gloss = recon_loss * self.recon_weight + camera_loss * self.cam_weight + gan_loss * self.gan_weight     # mira: weight 조정하기!
         gloss.backward()
 
         self.g_optimizer.step()
 
-        return gloss.item(), recon_loss.item(), camera_loss.item()
+        return gloss.item(), recon_loss.item(), camera_loss.item(), gan_loss.item()
 
     def discriminator_trainstep(self, x_real, y, z, pred_pose=None):
         toggle_grad(self.generator, False)

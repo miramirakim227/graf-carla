@@ -216,6 +216,7 @@ if __name__ == '__main__':
         reg_param=config['training']['reg_param'],
         cam_weight=config['training']['cam_weight'],
         recon_weight=config['training']['recon_weight'],
+        gan_weight=config['training']['gan_weight'],
         radius=config['data']['radius']
     )
 
@@ -254,10 +255,11 @@ if __name__ == '__main__':
                 #     generator.decrease_nerf_noise(it)
 
                 # Generators updates
-                gloss, recon_loss, cam_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
+                gloss, recon_loss, cam_loss, gan_loss = trainer.generator_trainstep(y=y, z=z, img=x_real, pred_pose=rotmat, GT_pose=GT_pose)
                 logger.add('losses', 'generator', gloss, it=it)
                 logger.add('losses', 'recon_loss', recon_loss, it=it)
                 logger.add('losses', 'cam_loss', cam_loss, it=it)
+                logger.add('losses', 'gan_loss', gan_loss, it=it)
 
                 if config['training']['take_model_average']:
                     update_average(generator_test, generator,
@@ -280,9 +282,15 @@ if __name__ == '__main__':
                     g_loss_last = logger.get_last('losses', 'generator')
                     recon_loss_last = logger.get_last('losses', 'recon_loss')
                     cam_loss_last = logger.get_last('losses', 'cam_loss')
+                    gan_loss_last = logger.get_last('losses', 'gan_loss')
 
-                    print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f'
-                        % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last))
+                    d_loss_last = logger.get_last('losses', 'discriminator')
+                    d_reg_last = logger.get_last('losses', 'regularizer')
+                    d_real_loss_last = logger.get_last('losses', 'd_real')
+                    d_fake_loss_last = logger.get_last('losses', 'd_fake')
+
+                    print('[%s epoch %0d, it %4d, t %0.3f] g_loss = %.4f, recon_loss = %.4f, cam_loss = %.4f, gan_loss = %.4f, d_loss = %.4f, reg=%.4f, d_real_loss = %.4f, d_fake_loss=%.4f'
+                        % (config['expname'], epoch_idx, it + 1, dt, g_loss_last, recon_loss_last, cam_loss_last, gan_loss_last, d_loss_last, d_reg_last, d_real_loss_last, d_fake_loss_last))
 
                 # (ii) Sample if necessary
                 if ((it % config['training']['sample_every']) == 0) or ((it < 500) and (it % 100 == 0)):
