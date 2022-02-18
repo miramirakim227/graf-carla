@@ -36,8 +36,8 @@ class Trainer(TrainerBase):
 
         return recon_loss.item()
 
-    def discriminator_trainstep(self, x_real, y, z):
-        return super(Trainer, self).discriminator_trainstep(x_real, y, z)       # spectral norm raises error for when using amp
+    def discriminator_trainstep(self, x_real, y, z, pred_pose=None):
+        return super(Trainer, self).discriminator_trainstep(x_real, y, z, pred_pose)       # spectral norm raises error for when using amp
 
 
 class Evaluator(EvaluatorBase):
@@ -56,9 +56,10 @@ class Evaluator(EvaluatorBase):
         return self.generator.val_ray_sampler(self.generator.H, self.generator.W,
                                               self.generator.focal, pose)[0]
 
-    def create_samples(self, z, poses=None):
-        self.generator.eval()
+    def create_samples(self, img, GT_pose):
+        self.generator.eval()       # 그냥 앗싸리 현재 배치에서 output 보여주기 
 
+        '''
         N_samples = len(z)
         device = self.generator.device
         z = z.to(device).split(self.batch_size)
@@ -75,19 +76,66 @@ class Evaluator(EvaluatorBase):
                 if rays_i is not None:
                     rays_i = rays_i.permute(1, 0, 2, 3).flatten(1, 2)       # Bx2x(HxW)xC -> 2x(BxHxW)x3
                 rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
+        '''
+        rgb, disp, acc = [], [], []
+        device = torch.device("cuda:0")
+        with torch.no_grad():
+            # assert ray 갯수 전체 이미지 갯수  # 이미지 하나하나에 대해서 만들기 
+            
+            shape, appearance = self.generator.encoder(img) #(B, 3, res, res)
+            #import pdb; pdb.set_trace()
+            # poses = torch.cat([GT_pose, rotmat[:, :, -1].unsqueeze(-1)*self.radius], dim=-1)
+            poses = GT_pose[:, :3, :]
+            num_poses = poses.shape[0]
+            z = torch.cat([shape, appearance], dim=-1)
+            z_shape = torch.cat([shape.flip(0), appearance], dim=-1)
+            z_appearance = torch.cat([shape, appearance.flip(0)], dim=-1)
 
+            rays = torch.stack([self.get_rays(poses[i].to(device)) for i in range(len(z))]) # eval rays <- full resolution
+            swap_rays = torch.stack([self.get_rays(poses[num_poses-1-i].to(device)) for i in range(len(z))])
+
+            for z_i, rays_i in tqdm(zip(z, rays), total=len(z), desc='Create samples...'):
+                z_i = z_i.unsqueeze(0)
+                bs = z_i.shape[0]
+                rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
+                
+                reshape = lambda x: x.view(bs, self.generator.H, self.generator.W, x.shape[1]).permute(0, 3, 1, 2)  # (NxHxW)xC -> NxCxHxW
+                rgb.append(reshape(rgb_i).cpu())
+
+            for z_i, rays_i in tqdm(zip(z_shape, rays), total=len(z_shape), desc='Create shape swap samples...'):
+                z_i = z_i.unsqueeze(0)
+                bs = z_i.shape[0]
+                rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
+                
+                reshape = lambda x: x.view(bs, self.generator.H, self.generator.W, x.shape[1]).permute(0, 3, 1, 2)  # (NxHxW)xC -> NxCxHxW
+                rgb.append(reshape(rgb_i).cpu())
+
+            for z_i, rays_i in tqdm(zip(z_appearance, rays), total=len(z_appearance), desc='Create appearance swap samples...'):
+                z_i = z_i.unsqueeze(0)
+                bs = z_i.shape[0]
+                rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
+                
+                reshape = lambda x: x.view(bs, self.generator.H, self.generator.W, x.shape[1]).permute(0, 3, 1, 2)  # (NxHxW)xC -> NxCxHxW
+                rgb.append(reshape(rgb_i).cpu())
+            
+            for z_i, rays_i in tqdm(zip(z, swap_rays), total=len(z), desc='Create camera swap samples...'):
+                z_i = z_i.unsqueeze(0)
+                bs = z_i.shape[0]
+                rgb_i, disp_i, acc_i, _ = self.generator(z_i, rays=rays_i, mode='eval')
+                
                 reshape = lambda x: x.view(bs, self.generator.H, self.generator.W, x.shape[1]).permute(0, 3, 1, 2)  # (NxHxW)xC -> NxCxHxW
                 rgb.append(reshape(rgb_i).cpu())
                 disp.append(reshape(disp_i).cpu())
                 acc.append(reshape(acc_i).cpu())
 
         rgb = torch.cat(rgb)
+        rgb_with_real = torch.cat([img.cpu(), rgb], dim=0)
         disp = torch.cat(disp)
         acc = torch.cat(acc)
 
         depth = self.disp_to_cdepth(disp)
 
-        return rgb, depth, acc
+        return rgb_with_real, depth, acc
 
     def make_video(self, basename, z, poses, as_gif=True):
         """ Generate images and save them as video.

@@ -8,7 +8,7 @@ from torch import autograd
 
 class Trainer(object):
     def __init__(self, generator, discriminator, g_optimizer, d_optimizer,
-                 gan_type, reg_type, reg_param):
+                 gan_type, reg_type, reg_param, cam_weight, recon_weight, gan_weight, radius):
         self.generator = generator
         self.discriminator = discriminator
         self.g_optimizer = g_optimizer
@@ -18,9 +18,10 @@ class Trainer(object):
         self.gan_type = gan_type
         self.reg_type = reg_type
         self.reg_param = reg_param
-        self.recon_weight = 100
-        self.cam_weight = 1
-        self.radius = 10
+        self.recon_weight = recon_weight
+        self.cam_weight = cam_weight
+        self.gan_weight = gan_weight
+        self.radius = radius
 
     def generator_trainstep(self, y, z, img=None, pred_pose=None, GT_pose=None):
         assert(y.size(0) == z.size(0))
@@ -30,7 +31,7 @@ class Trainer(object):
 
         x_fake, inds = self.generator(z=z, y=y, pred_pose=pred_pose)       # z = shape, appearance
         GT_sampled = torch.nn.functional.grid_sample(img, 
-                                inds, mode='bilinear', align_corners=True)       # 이거인가 혹은 반대인가..
+                                inds, mode='bilinear', align_corners=True)       # 이거인가 혹은 반대인가.. -> 이거 맞는듯 
         GT_sampled = GT_sampled.permute(0, 2, 3, 1).reshape(-1, 3)
         recon_loss = self.recon_loss(x_fake, GT_sampled) 
     
@@ -41,7 +42,7 @@ class Trainer(object):
 
         return gloss.item(), recon_loss.item()
 
-    def discriminator_trainstep(self, x_real, y, z):
+    def discriminator_trainstep(self, x_real, y, z, pred_pose=None):
         toggle_grad(self.generator, False)
         toggle_grad(self.discriminator, True)
         self.generator.train()
@@ -63,7 +64,7 @@ class Trainer(object):
 
         # On fake data
         with torch.no_grad():
-            x_fake = self.generator(z, y)
+            x_fake, _ = self.generator(z, y, pred_pose=pred_pose)       # mira: pred pose 안에서 random sample해서 만들 예정 
 
         x_fake.requires_grad_()
         d_fake = self.discriminator(x_fake, y)
@@ -93,7 +94,7 @@ class Trainer(object):
         if self.reg_type == 'none':
             reg = torch.tensor(0.)
 
-        return dloss.item(), reg.item()
+        return dloss.item(), reg.item(), dloss_real.item(), dloss_fake.item()
 
     def compute_loss(self, d_outs, target):
 

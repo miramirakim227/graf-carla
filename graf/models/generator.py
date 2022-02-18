@@ -52,21 +52,20 @@ class Generator(object):
         bs = z.shape[0]
 
         # sample_ray를 pred_pose 기준으로 함..!
-        if mode == 'eval':
-            if rays is None:
-                rays = torch.cat([self.sample_rays(mode='eval') for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
-                inds = None
-        else:
-            if rays is None:
-                ray_list = []
-                hw_list = []
-                for i in range(bs):
-
-                    ray, hw = self.sample_rays(pred_pose[i])
-                    ray_list.append(ray)
-                    hw_list.append(hw)
-                rays = torch.cat(ray_list, dim=1)
-                inds = torch.stack(hw_list, dim=0)
+        # if mode == 'eval':
+        #     if rays is None:
+        #         rays = torch.cat([self.sample_rays() for _ in range(bs)], dim=1)        # ray를 하나씩 샘플링
+        #         inds = None
+        # else:
+        if rays is None:
+            ray_list = []
+            hw_list = []
+            for i in range(bs):
+                ray, hw = self.sample_rays(pred_pose[i])
+                ray_list.append(ray)
+                hw_list.append(hw)
+            rays = torch.cat(ray_list, dim=1)
+            inds = torch.stack(hw_list, dim=0)
 
         render_kwargs = self.render_kwargs_test if self.use_test_kwargs else self.render_kwargs_train
         render_kwargs = dict(render_kwargs)        # copy
@@ -200,16 +199,18 @@ class Generator(object):
         return RT
 
 
-    def sample_rays(self, pred_pose=None):  # pose도 input argument로 넣어주기. dimension 맞춰주기!
+    def sample_rays(self, pred_pose=None, mode=None):  # pose도 input argument로 넣어주기. dimension 맞춰주기!
         # mira: expect uv, range는 dataset의 uv에 맞게 정해져있음 
-        if pred_pose is not None:
-            pose = pred_pose
-        else:
-            pose = self.sample_pose()   # mira: 여기서 pose distribution 찾아보기, 적어도 pose어떻게 생겼는지 확인해보기
+        pose = torch.cat([pred_pose, pred_pose[:, -1].unsqueeze(-1)*self.radius], dim=-1)
+        # else:
+        #     pose = self.sample_pose()   # mira: 여기서 pose distribution 찾아보기, 적어도 pose어떻게 생겼는지 확인해보기
         # mira: 그리고 pose dimension도 확인해보기
         sampler = self.val_ray_sampler if self.use_test_kwargs else self.ray_sampler
         batch_rays, _, hw = sampler(self.H, self.W, self.focal, pose)
-        return batch_rays, hw
+        if mode =='eval':
+            return batch_rays
+        else:
+            return batch_rays, hw
 
     def to(self, device):
         self.render_kwargs_train['network_fn'].to(device)
